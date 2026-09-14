@@ -1,6 +1,5 @@
 // services/hls.js
 import ffmpeg from 'fluent-ffmpeg';
-import ffmpegStatic from 'ffmpeg-static';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
@@ -9,12 +8,17 @@ import pLimit from 'p-limit';
 import { uploadFile, publicUrl } from './s3.js';
 import { CONFIG } from '../config.js';
 
-ffmpeg.setFfmpegPath(ffmpegStatic);
+// ============================================================
+//  FFMPEG: usar el binario del sistema (Render con Docker)
+// ============================================================
+ffmpeg.setFfmpegPath('/usr/bin/ffmpeg');
 
 const QUALITY_PROFILES = CONFIG.hls.qualities;
 const HLS_CONFIG = CONFIG.hls;
 
-// ============ COLA DE TRABAJOS ============
+// ============================================================
+//  COLA DE TRABAJOS
+// ============================================================
 let activeJobs = 0;
 const jobQueue = [];
 
@@ -33,12 +37,9 @@ function releaseSlot() {
   if (next) next();
 }
 
-// ============ FUNCIÓN PRINCIPAL ============
-/**
- * @param {string|Buffer} input - Ruta del archivo O buffer del video
- * @param {string} videoId
- * @param {Function} onProgress
- */
+// ============================================================
+//  FUNCIÓN PRINCIPAL
+// ============================================================
 export async function transcodeToHLS(input, videoId, onProgress = () => {}) {
   await acquireSlot();
 
@@ -49,18 +50,14 @@ export async function transcodeToHLS(input, videoId, onProgress = () => {}) {
 
   fs.mkdirSync(hlsDir, { recursive: true });
 
-  let ownInputFile = false;
-
   try {
-    // Si recibimos Buffer, escribirlo a disco
     if (Buffer.isBuffer(input)) {
       fs.writeFileSync(inputPath, input);
-      ownInputFile = true;
     } else {
-      // Es una ruta; copiarla al tmp dir para procesar
       fs.copyFileSync(input, inputPath);
-      ownInputFile = true;
     }
+
+    logDiskSpace(tmpDir);
 
     // ============ 1. TRANSCODIFICAR ============
     onProgress(0, 'transcoding');
@@ -73,6 +70,8 @@ export async function transcodeToHLS(input, videoId, onProgress = () => {}) {
     const baseKey = `videos/${videoId}/hls`;
     const filesToUpload = collectFiles(hlsDir);
     const limit = pLimit(HLS_CONFIG.concurrencyUploads);
+
+    console.log(`📦 Subiendo ${filesToUpload.length} archivos HLS a S3...`);
 
     let uploadedCount = 0;
     const uploadedKeys = [];
@@ -101,6 +100,8 @@ export async function transcodeToHLS(input, videoId, onProgress = () => {}) {
 
     onProgress(100, 'done');
 
+    console.log(`✅ HLS listo: ${uploadedKeys.length} archivos subidos a S3`);
+
     return {
       masterKey,
       masterUrl: publicUrl(masterKey),
@@ -109,23 +110,66 @@ export async function transcodeToHLS(input, videoId, onProgress = () => {}) {
       duration: Math.round(duration)
     };
   } finally {
-    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch {}
+    try {
+      if (fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    } catch (err) {
+      console.error('⚠️  Error limpiando tmp HLS:', err.message);
+    }
     releaseSlot();
   }
 }
 
-// ============ FFMPEG ============
+// ============================================================
+//  FFMPEG: EJECUCIÓN CON LOGS COMPLETOS
+// ============================================================
 function runFFmpeg(inputPath, hlsDir, onProgress) {
   return new Promise((resolve, reject) => {
     ffmpeg.ffprobe(inputPath, (err, metadata) => {
-      if (err) return reject(err);
+      if (err) {
+        console.error('❌ ffprobe falló:', err.message);
+        console.error('   inputPath:', inputPath);
+        return reject(new Error(`ffprobe: ${err.message}`));
+      }
 
-      const totalDuration = metadata.format.duration || 0;
+      // ============ LOG DE METADATA ============
+      console.log('');
+      console.log('📹 ─── METADATA DEL VIDEO ───');
+      console.log('   Formato:', metadata.format.format_name);
+      console.log('   Duración:', metadata.format.duration, 's');
+      console.log('   Tamaño:', (Number(metadata.format.size) / 1024 / 1024).toFixed(2), 'MB');
+      console.log('   Bitrate:', metadata.format.bit_rate);
+      console.log('   Streams:');
+      metadata.streams.forEach((s, i) => {
+        if (s.codec_type === 'video') {
+          console.log(`     [${i}] video: ${s.codec_name} ${s.width}x${s.height} pix_fmt=${s.pix_fmt} fps=${s.r_frame_rate}`);
+        } else if (s.codec_type === 'audio') {
+          console.log(`     [${i}] audio: ${s.codec_name} ${s.channels}ch ${s.sample_rate}Hz`);
+        } else {
+          console.log(`     [${i}] ${s.codec_type}: ${s.codec_name}`);
+        }
+      });
+      console.log('   ───────────────────────');
+      console.log('');
+
+      const totalDuration = parseFloat(metadata.format.duration) || 0;
       const outputOptions = buildFFmpegOptions(hlsDir);
+
+      let stderrOutput = '';
 
       ffmpeg(inputPath)
         .outputOptions(outputOptions)
         .output(path.join(hlsDir, 'master.m3u8'))
+        .on('start', (cmdLine) => {
+          console.log('🎬 ─── COMANDO FFMPEG ───');
+          console.log(cmdLine);
+          console.log('   ────────────────────');
+          console.log('');
+        })
+        .on('stderr', (line) => {
+          stderrOutput += line + '\n';
+        })
         .on('progress', (p) => {
           const secs = parseTime(p.timemark);
           const pct = totalDuration > 0
@@ -133,18 +177,74 @@ function runFFmpeg(inputPath, hlsDir, onProgress) {
             : 0;
           onProgress(pct);
         })
-        .on('end', () => resolve(totalDuration))
-        .on('error', reject)
+        .on('end', () => {
+          console.log('✅ FFmpeg completó la transcodificación');
+          resolve(totalDuration);
+        })
+        .on('error', (err) => {
+          console.error('');
+          console.error('❌ ❌ ❌  FFMPEG ERROR  ❌ ❌ ❌');
+          console.error('   Mensaje:', err.message);
+          console.error('   Signal:', err.signal || 'n/a');
+          console.error('');
+          console.error('   ─── STDERR COMPLETO ───');
+          const lines = stderrOutput.split('\n');
+          const tail = lines.slice(-60);
+          tail.forEach(l => console.error('   >', l));
+          console.error('   ─── FIN STDERR ───');
+          console.error('');
+
+          detectErrorCause(stderrOutput);
+
+          reject(new Error(`FFmpeg: ${err.message}`));
+        })
         .run();
     });
   });
 }
 
+// ============================================================
+//  DETECCIÓN AUTOMÁTICA DE CAUSA
+// ============================================================
+function detectErrorCause(stderr) {
+  const lower = stderr.toLowerCase();
+
+  const causes = [
+    { match: /no space left on device/, msg: '💾 DISCO LLENO: reduce maxLinkDownloadMB o sube el plan de Render.' },
+    { match: /cannot allocate memory|out of memory/, msg: '🧠 SIN MEMORIA RAM: reduce calidades o maxConcurrentJobs.' },
+    { match: /invalid color space|unsupported color space/, msg: '🎨 INVALID COLOR SPACE: bug de FFmpeg 7.1+.' },
+    { match: /unknown decoder|decoder.*not found|no decoder/, msg: '🎞 CÓDEC NO SOPORTADO: instala ffmpeg con todos los códecs.' },
+    { match: /invalid data found|moov atom not found/, msg: '📁 ARCHIVO CORRUPTO o INCOMPLETO.' },
+    { match: /permission denied/, msg: '🔒 PERMISO DENEGADO en /tmp.' },
+    { match: /conversion failed/, msg: '⚠️  CONVERSION FAILED genérico: revisa el stderr arriba.' },
+    { match: /eacces|enoent/, msg: '🚫 NO SE ENCUENTRA FFMPEG: revisa el Dockerfile.' }
+  ];
+
+  for (const c of causes) {
+    if (c.match.test(lower)) {
+      console.error('');
+      console.error('🎯 CAUSA PROBABLE:', c.msg);
+      console.error('');
+      return;
+    }
+  }
+
+  console.error('');
+  console.error('🎯 CAUSA: no identificada automáticamente. Revisa el stderr.');
+  console.error('');
+}
+
+// ============================================================
+//  CONSTRUIR OPCIONES DE FFMPEG
+// ============================================================
 function buildFFmpegOptions(hlsDir) {
   const opts = [];
 
   opts.push('-preset', 'veryfast');
   opts.push('-movflags', '+faststart');
+
+  // Fix para "Invalid color space"
+  opts.push('-pix_fmt', 'yuv420p');
 
   // GOP alineado con segmentos de 1s
   opts.push('-g', String(HLS_CONFIG.gopFrames));
@@ -187,6 +287,9 @@ function buildFFmpegOptions(hlsDir) {
   return opts;
 }
 
+// ============================================================
+//  UTILIDADES
+// ============================================================
 function collectFiles(dir, files = []) {
   for (const entry of fs.readdirSync(dir)) {
     const full = path.join(dir, entry);
@@ -211,4 +314,15 @@ function parseTime(timemark) {
   return (parseInt(parts[0], 10) || 0) * 3600 +
          (parseInt(parts[1], 10) || 0) * 60 +
          (parseFloat(parts[2]) || 0);
+}
+
+function logDiskSpace(dir) {
+  try {
+    if (fs.statfs) {
+      const stats = fs.statfsSync(dir);
+      const freeGB = (stats.bfree * stats.bsize) / (1024 ** 3);
+      const totalGB = (stats.blocks * stats.bsize) / (1024 ** 3);
+      console.log(`💾 Disco: ${freeGB.toFixed(2)} GB libres de ${totalGB.toFixed(2)} GB`);
+    }
+  } catch {}
 }
