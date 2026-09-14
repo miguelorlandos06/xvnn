@@ -7,6 +7,7 @@ export const CONFIG = {
   // ============ SERVIDOR ============
   server: {
     port: parseInt(process.env.PORT) || 3000,
+    // >>> CAMBIAR a tu URL pública de Render
     baseUrl: process.env.BASE_URL || 'http://localhost:3000',
     env: process.env.NODE_ENV || 'development'
   },
@@ -74,7 +75,7 @@ export const CONFIG = {
     botName: 'XVNN Bot',
     pollTimeout: 30,
     pollIntervalMs: 500,
-    maxLinkDownloadMB: 500
+    maxLinkDownloadMB: 200
   },
 
   // ============ RATE LIMITING ============
