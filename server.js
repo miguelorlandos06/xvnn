@@ -33,26 +33,23 @@ const authLimiter = rateLimit({
   message: { message: 'Demasiados intentos' }
 });
 
-// Silenciar logs de health checks
-app.use((req, res, next) => {
-  if (req.path.startsWith('/api/health')) req.silent = true;
-  next();
-});
-
 // ============ ESTÁTICOS ============
 app.use('/', express.static(path.join(__dirname, 'public')));
+
+// ============ REDIRECCIÓN DE RAÍZ ============
+app.get('/', (req, res) => {
+  res.redirect('/auth.html');
+});
 
 // ============ RUTAS ============
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/videos', videoRoutes);
 
 // ============ HEALTH ============
-// Endpoint ligero para keep-alive (UptimeRobot)
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', time: Date.now() });
 });
 
-// Endpoint completo para monitoreo real
 app.get('/api/health/full', async (req, res) => {
   try {
     await pool.query('SELECT 1');
@@ -86,7 +83,6 @@ app.use((err, req, res, next) => {
   try {
     await initDatabase();
 
-    // Escuchar en 0.0.0.0 para que Render pueda enrutar
     app.listen(PORT, '0.0.0.0', () => {
       console.log('');
       console.log('╔═══════════════════════════════════════╗');
@@ -98,7 +94,6 @@ app.use((err, req, res, next) => {
       console.log('');
     });
 
-    // Iniciar bot (no bloquea)
     startTelegramBot();
 
   } catch (err) {
