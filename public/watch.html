@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>XVNN - Reproduciendo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.15/dist/hls.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --black: #0a0a0a; --black-2: #141414; --black-3: #1c1c1c;
+    --red: #e50914; --red-hover: #ff1a26; --gray: #8a8a8a;
+    --white: #fff; --green: #2ecc71; --header-h: 58px;
+  }
+  html, body { min-height: 100%; font-family: 'Poppins', sans-serif; background: var(--black); color: var(--white); overflow-x: hidden; }
+  body { padding-bottom: 40px; }
+
+  .top-header {
+    position: fixed; top: 0; left: 0; right: 0; height: var(--header-h);
+    background: rgba(10,10,10,0.9); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; gap: 12px; padding: 0 12px; z-index: 100;
+  }
+  .back-btn {
+    width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;
+    background: var(--black-2); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;
+    color: var(--white); cursor: pointer; transition: all 0.2s ease; flex-shrink: 0;
+  }
+  .back-btn:active { transform: scale(0.94); background: var(--black-3); }
+  .back-btn svg { width: 18px; height: 18px; }
+  .header-title { flex: 1; display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 700; letter-spacing: 1.5px; }
+  .header-title .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--red); box-shadow: 0 0 10px var(--red); }
+  .header-category {
+    padding: 5px 10px; background: rgba(229,9,20,0.15); border: 1px solid rgba(229,9,20,0.3);
+    border-radius: 8px; font-size: 11px; font-weight: 600; color: var(--red);
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+
+  .player-container { margin-top: var(--header-h); width: 100%; background: #000; position: relative; aspect-ratio: 16 / 9; overflow: hidden; }
+  .player-container video { width: 100%; height: 100%; display: block; background: #000; object-fit: contain; }
+  .player-placeholder {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a0505 100%); z-index: 1;
+  }
+  .player-placeholder img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.35; filter: blur(2px); }
+  .placeholder-content { position: relative; z-index: 2; text-align: center; padding: 20px; }
+  .placeholder-content .big-play {
+    width: 70px; height: 70px; border-radius: 50%; background: var(--red);
+    display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;
+    cursor: pointer; box-shadow: 0 10px 40px rgba(229,9,20,0.5); transition: transform 0.25s ease;
+  }
+  .placeholder-content .big-play:active { transform: scale(0.92); }
+  .placeholder-content .big-play svg { width: 28px; height: 28px; color: var(--white); margin-left: 3px; }
+  .placeholder-content p { font-size: 12px; color: var(--gray); font-weight: 500; }
+
+  .quality-indicator {
+    position: absolute; top: 12px; right: 12px; padding: 4px 10px;
+    background: rgba(0,0,0,0.8); color: var(--red); font-size: 11px; font-weight: 700;
+    border-radius: 6px; letter-spacing: 0.5px; pointer-events: none; z-index: 10;
+    font-family: Poppins, sans-serif; display: none;
+  }
+
+  .video-info { padding: 18px 16px 0; }
+  .video-title { font-size: 18px; font-weight: 700; line-height: 1.3; margin-bottom: 10px; }
+  .video-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 12px; color: var(--gray); margin-bottom: 18px; }
+  .video-meta .divider { width: 3px; height: 3px; border-radius: 50%; background: #444; }
+
+  .action-bar { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; padding: 0 16px 18px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .action-btn {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    padding: 12px 8px; background: var(--black-2); border: 1.5px solid rgba(255,255,255,0.08);
+    border-radius: 12px; color: var(--white); font-family: 'Poppins', sans-serif; font-size: 12px;
+    font-weight: 600; cursor: pointer; transition: all 0.25s ease;
+  }
+  .action-btn:active { transform: scale(0.96); }
+  .action-btn svg { width: 22px; height: 22px; transition: all 0.3s ease; }
+  .action-btn .count { font-size: 11px; font-weight: 600; color: var(--gray); transition: color 0.25s ease; }
+
+  .action-btn.like.active { border-color: var(--green); background: rgba(46, 204, 113, 0.08); }
+  .action-btn.like.active svg { color: var(--green); filter: drop-shadow(0 0 8px rgba(46,204,113,0.5)); }
+  .action-btn.like.active .count { color: var(--green); }
+
+  .action-btn.dislike.active { border-color: var(--red); background: rgba(229, 9, 20, 0.08); }
+  .action-btn.dislike.active svg { color: var(--red); filter: drop-shadow(0 0 8px rgba(229,9,20,0.5)); }
+  .action-btn.dislike.active .count { color: var(--red); }
+
+  .action-btn.download { border-color: rgba(229,9,20,0.3); }
+  .action-btn.download:active { background: rgba(229,9,20,0.12); }
+  .action-btn.download svg { color: var(--red); }
+  .action-btn.download .label { color: var(--red); }
+  .action-btn.download.loading svg { animation: bounceDown 0.6s ease infinite; }
+  @keyframes bounceDown { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(4px); } }
+
+  .action-btn.like.burst svg { animation: likeBurst 0.5s ease; }
+  @keyframes likeBurst { 0% { transform: scale(1); } 40% { transform: scale(1.35); } 70% { transform: scale(0.9); } 100% { transform: scale(1); } }
+
+  .description-box { margin: 18px 16px; padding: 14px; background: var(--black-2); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; }
+  .description-box h4 { font-size: 12px; font-weight: 600; color: var(--gray); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .description-box p { font-size: 13px; line-height: 1.55; color: #c8c8c8; }
+
+  .related-section { padding: 0 16px 20px; }
+  .related-title { font-size: 14px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .related-title::before { content: ''; width: 3px; height: 16px; background: var(--red); border-radius: 2px; }
+  .related-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .related-card { background: var(--black-2); border-radius: 10px; overflow: hidden; cursor: pointer; transition: transform 0.2s ease; }
+  .related-card:active { transform: scale(0.97); }
+  .related-thumb { position: relative; width: 100%; aspect-ratio: 16 / 10; background: var(--black-3); overflow: hidden; }
+  .related-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .related-duration { position: absolute; bottom: 5px; right: 5px; padding: 2px 6px; background: rgba(0,0,0,0.85); border-radius: 4px; font-size: 10px; font-weight: 600; }
+  .related-info { padding: 8px 10px 10px; }
+  .related-info h4 { font-size: 12px; font-weight: 600; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+  @media (min-width: 768px) {
+    .player-container { max-width: 900px; margin-left: auto; margin-right: auto; border-radius: 0 0 16px 16px; }
+    .video-info, .action-bar, .description-box, .related-section { max-width: 900px; margin-left: auto; margin-right: auto; }
+    .action-bar { grid-template-columns: repeat(3, 180px); justify-content: start; }
+    .related-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (min-width: 1024px) { .related-grid { grid-template-columns: repeat(4, 1fr); } }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px);
+    padding: 12px 20px; background: var(--black-2); border: 1px solid rgba(229,9,20,0.4);
+    border-radius: 12px; color: var(--white); font-size: 13px; font-weight: 500;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.6); z-index: 200; opacity: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: none;
+    max-width: calc(100% - 32px); display: flex; align-items: center; gap: 8px;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+  .toast svg { width: 16px; height: 16px; color: var(--red); flex-shrink: 0; }
+  .toast.success svg { color: var(--green); }
+</style>
+</head>
+<body>
+
+<header class="top-header">
+  <button class="back-btn" id="backBtn" aria-label="Volver">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="15 18 9 12 15 6"></polyline>
+    </svg>
+  </button>
+  <div class="header-title">
+    <span class="dot"></span>
+    XVNN
+  </div>
+  <span class="header-category" id="headerCategory">Hetero</span>
+</header>
+
+<div class="player-container">
+  <video id="videoPlayer" controls playsinline preload="metadata" style="display:none;"></video>
+  <div class="player-placeholder" id="playerPlaceholder">
+    <img id="placeholderThumb" src="" alt="">
+    <div class="placeholder-content">
+      <div class="big-play" id="bigPlay">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <polygon points="5 3 19 12 5 21 5 3"></polygon>
+        </svg>
+      </div>
+      <p>Reproducir video</p>
+    </div>
+  </div>
+  <div class="quality-indicator" id="qualityIndicator"></div>
+</div>
+
+<div class="video-info">
+  <h1 class="video-title" id="videoTitle">Cargando...</h1>
+  <div class="video-meta">
+    <span class="views" id="videoViews">0 vistas</span>
+    <span class="divider"></span>
+    <span id="videoDate">Hoy</span>
+  </div>
+</div>
+
+<div class="action-bar">
+  <button class="action-btn like" id="likeBtn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
+    </svg>
+    <span class="count" id="likeCount">0</span>
+  </button>
+  <button class="action-btn dislike" id="dislikeBtn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path>
+    </svg>
+    <span class="count" id="dislikeCount">0</span>
+  </button>
+  <button class="action-btn download" id="downloadBtn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+      <polyline points="7 10 12 15 17 10"></polyline>
+      <line x1="12" y1="15" x2="12" y2="3"></line>
+    </svg>
+    <span class="label">Descargar</span>
+    <span class="count" id="downloadSize">—</span>
+  </button>
+</div>
+
+<div class="description-box">
+  <h4>Descripción</h4>
+  <p id="videoDescription">Cargando...</p>
+</div>
+
+<section class="related-section">
+  <h3 class="related-title">Videos relacionados</h3>
+  <div class="related-grid" id="relatedGrid"></div>
+</section>
+
+<div class="toast" id="toast">
+  <svg id="toastIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="10"></circle>
+    <line x1="12" y1="8" x2="12" y2="12"></line>
+    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+  </svg>
+  <span id="toastText">Mensaje</span>
+</div>
+
+<script>
+  const API_URL = window.location.origin + '/api';
+  const token = localStorage.getItem('xvnn_token');
+
+  if (!token) window.location.href = 'auth.html';
+
+  const params = new URLSearchParams(window.location.search);
+  const videoId = params.get('id') || localStorage.getItem('xvnn_current_video');
+  const category = localStorage.getItem('xvnn_current_category') || 'Hetero';
+
+  let currentVideo = null;
+  let userReaction = null;
+  let hlsInstance = null;
+
+  const els = {
+    backBtn: document.getElementById('backBtn'),
+    headerCategory: document.getElementById('headerCategory'),
+    player: document.getElementById('videoPlayer'),
+    placeholder: document.getElementById('playerPlaceholder'),
+    placeholderThumb: document.getElementById('placeholderThumb'),
+    bigPlay: document.getElementById('bigPlay'),
+    title: document.getElementById('videoTitle'),
+    views: document.getElementById('videoViews'),
+    date: document.getElementById('videoDate'),
+    description: document.getElementById('videoDescription'),
+    likeBtn: document.getElementById('likeBtn'),
+    dislikeBtn: document.getElementById('dislikeBtn'),
+    downloadBtn: document.getElementById('downloadBtn'),
+    likeCount: document.getElementById('likeCount'),
+    dislikeCount: document.getElementById('dislikeCount'),
+    downloadSize: document.getElementById('downloadSize'),
+    relatedGrid: document.getElementById('relatedGrid'),
+    qualityIndicator: document.getElementById('qualityIndicator'),
+    toast: document.getElementById('toast'),
+    toastText: document.getElementById('toastText'),
+    toastIcon: document.getElementById('toastIcon')
+  };
+
+  async function loadVideo() {
+    try {
+      const headers = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(`${API_URL}/videos/${videoId}`, { headers });
+      const data = await res.json();
+
+      if (!res.ok) {
+        showToast(data.message || 'Video no encontrado', 'error');
+        setTimeout(() => window.location.href = 'web.html', 1500);
+        return;
+      }
+
+      currentVideo = data;
+      userReaction = data.userReaction;
+
+      els.headerCategory.textContent = data.category;
+      els.title.textContent = data.title;
+      els.views.textContent = `${data.views} vistas`;
+      els.date.textContent = formatDate(data.createdAt);
+      els.description.textContent = data.description || 'Sin descripción';
+      els.placeholderThumb.src = data.thumb;
+      els.player.poster = data.thumb;
+      els.likeCount.textContent = formatNumber(data.likes);
+      els.dislikeCount.textContent = formatNumber(data.dislikes);
+      els.downloadSize.textContent = data.size;
+
+      if (userReaction === 'like') els.likeBtn.classList.add('active');
+      else if (userReaction === 'dislike') els.dislikeBtn.classList.add('active');
+
+      document.title = `${data.title} - XVNN`;
+
+      loadRelated();
+    } catch (err) {
+      console.error(err);
+      showToast('Error cargando video', 'error');
+    }
+  }
+
+  async function loadRelated() {
+    try {
+      const res = await fetch(`${API_URL}/videos?category=${currentVideo.category}&limit=7`);
+      const data = await res.json();
+      const related = (data.videos || []).filter(v => v.id !== videoId).slice(0, 6);
+
+      if (related.length === 0) {
+        els.relatedGrid.innerHTML = '<p style="color:var(--gray);font-size:13px;grid-column:1/-1;">No hay videos relacionados</p>';
+        return;
+      }
+
+      els.relatedGrid.innerHTML = related.map(v => `
+        <div class="related-card" data-id="${v.id}">
+          <div class="related-thumb">
+            <img src="${v.thumb}" alt="${escapeHtml(v.title)}" loading="lazy">
+            <span class="related-duration">${v.duration}</span>
+          </div>
+          <div class="related-info">
+            <h4>${escapeHtml(v.title)}</h4>
+          </div>
+        </div>
+      `).join('');
+
+      document.querySelectorAll('.related-card').forEach(card => {
+        card.addEventListener('click', () => {
+          localStorage.setItem('xvnn_current_video', card.dataset.id);
+          window.location.href = `watch.html?id=${card.dataset.id}`;
+        });
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  // ============ PLAYER ============
+  els.bigPlay.addEventListener('click', () => {
+    els.placeholder.style.display = 'none';
+    els.player.style.display = 'block';
+
+    const source = currentVideo.hlsUrl || currentVideo.videoUrl;
+
+    if (currentVideo.hlsUrl && window.Hls && Hls.isSupported()) {
+      hlsInstance = new Hls({
+        maxBufferLength: 15,
+        maxMaxBufferLength: 30,
+        maxBufferSize: 60 * 1000 * 1000,
+        startLevel: -1,
+        abrEwmaDefaultEstimate: 500000,
+        abrBandWidthFactor: 0.95,
+        abrBandWidthUpFactor: 0.7,
+        enableWorker: true,
+        lowLatencyMode: false,
+        fragLoadingMaxRetry: 6,
+        fragLoadingRetryDelay: 500,
+        manifestLoadingMaxRetry: 4,
+        levelLoadingMaxRetry: 4
+      });
+
+      hlsInstance.loadSource(source);
+      hlsInstance.attachMedia(els.player);
+
+      hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+        els.player.play().catch(() => {});
+      });
+
+      hlsInstance.on(Hls.Events.LEVEL_SWITCHED, (event, data) => {
+        const level = hlsInstance.levels[data.level];
+        if (level && level.height) {
+          els.qualityIndicator.style.display = 'block';
+          els.qualityIndicator.textContent = `${level.height}p · ${(level.bitrate / 1000000).toFixed(2)} Mbps`;
+        }
+      });
+
+      hlsInstance.on(Hls.Events.ERROR, (event, data) => {
+        if (data.fatal) {
+          console.error('Error HLS fatal:', data);
+          if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+            hlsInstance.startLoad();
+          } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+            hlsInstance.recoverMediaError();
+          } else {
+            hlsInstance.destroy();
+            els.player.src = currentVideo.videoUrl;
+            els.player.play().catch(() => {});
+          }
+        }
+      });
+    } else if (els.player.canPlayType('application/vnd.apple.mpegurl') && currentVideo.hlsUrl) {
+      els.player.src = currentVideo.hlsUrl;
+      els.player.play().catch(() => {});
+    } else {
+      els.player.src = currentVideo.videoUrl;
+      els.player.play().catch(() => {});
+    }
+
+    fetch(`${API_URL}/videos/${videoId}/view`, { method: 'POST' }).catch(() => {});
+  });
+
+  // ============ REACCIONES ============
+  async function react(reaction) {
+    try {
+      const res = await fetch(`${API_URL}/videos/${videoId}/react`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ reaction })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+
+      els.likeCount.textContent = formatNumber(data.likes);
+      els.dislikeCount.textContent = formatNumber(data.dislikes);
+      userReaction = data.userReaction;
+
+      els.likeBtn.classList.toggle('active', userReaction === 'like');
+      els.dislikeBtn.classList.toggle('active', userReaction === 'dislike');
+
+      if (reaction === 'like' && userReaction === 'like') {
+        els.likeBtn.classList.add('burst');
+        setTimeout(() => els.likeBtn.classList.remove('burst'), 500);
+      }
+    } catch (err) {
+      showToast('Error al reaccionar', 'error');
+    }
+  }
+
+  els.likeBtn.addEventListener('click', () => {
+    const newReaction = userReaction === 'like' ? null : 'like';
+    react(newReaction);
+  });
+
+  els.dislikeBtn.addEventListener('click', () => {
+    const newReaction = userReaction === 'dislike' ? null : 'dislike';
+    react(newReaction);
+  });
+
+  // ============ DESCARGA ============
+  els.downloadBtn.addEventListener('click', () => {
+    els.downloadBtn.classList.add('loading');
+    const label = els.downloadBtn.querySelector('.label');
+    const originalLabel = label.textContent;
+    label.textContent = 'Preparando...';
+
+    const link = document.createElement('a');
+    link.href = `${API_URL}/videos/${videoId}/download`;
+    link.download = `XVNN_${currentVideo.title.replace(/[^a-z0-9]/gi, '_')}.mp4`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    showToast(`Descarga iniciada (${currentVideo.size})`, 'success');
+    label.textContent = 'Descargado';
+    setTimeout(() => {
+      label.textContent = originalLabel;
+      els.downloadBtn.classList.remove('loading');
+    }, 2000);
+  });
+
+  // ============ NAVEGACIÓN ============
+  els.backBtn.addEventListener('click', () => {
+    if (hlsInstance) hlsInstance.destroy();
+    if (document.referrer && document.referrer.includes('web.html')) {
+      window.history.back();
+    } else {
+      window.location.href = 'web.html';
+    }
+  });
+
+  window.addEventListener('beforeunload', () => {
+    if (hlsInstance) hlsInstance.destroy();
+  });
+
+  // ============ UTILIDADES ============
+  function formatNumber(n) {
+    if (n >= 1000000) return (n / 1000000).toFixed(1).replace('.0', '') + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1).replace('.0', '') + 'K';
+    return n.toString();
+  }
+
+  function formatDate(iso) {
+    if (!iso) return 'Hoy';
+    const d = new Date(iso);
+    const now = new Date();
+    const diff = now - d;
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+    if (days === 0) return 'Hoy';
+    if (days === 1) return 'Ayer';
+    if (days < 7) return `Hace ${days} días`;
+    if (days < 30) return `Hace ${Math.floor(days / 7)} semanas`;
+    if (days < 365) return `Hace ${Math.floor(days / 30)} meses`;
+    return `Hace ${Math.floor(days / 365)} años`;
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text || '';
+    return div.innerHTML;
+  }
+
+  let toastTimer;
+  function showToast(message, type = 'info') {
+    clearTimeout(toastTimer);
+    els.toastText.textContent = message;
+
+    if (type === 'success') {
+      els.toast.classList.add('success');
+      els.toastIcon.innerHTML = '<polyline points="20 6 9 17 4 12"></polyline>';
+      els.toastIcon.style.color = 'var(--green)';
+    } else if (type === 'error') {
+      els.toast.classList.remove('success');
+      els.toastIcon.innerHTML = '<circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line>';
+      els.toastIcon.style.color = 'var(--red)';
+    } else {
+      els.toast.classList.remove('success');
+      els.toastIcon.innerHTML = '<circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line>';
+      els.toastIcon.style.color = 'var(--red)';
+    }
+
+    els.toast.classList.add('show');
+    toastTimer = setTimeout(() => els.toast.classList.remove('show'), 2800);
+  }
+
+  loadVideo();
+</script>
+
+</body>
+</html>
