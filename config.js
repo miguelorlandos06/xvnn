@@ -1,7 +1,6 @@
 // config.js
 // ============================================================
 //  ⚙️  CONFIGURACIÓN CENTRAL DE XVNN
-//  Edita SOLO este archivo para cambiar cualquier parámetro.
 // ============================================================
 
 export const CONFIG = {
@@ -14,16 +13,14 @@ export const CONFIG = {
 
   // ============ JWT ============
   jwt: {
-    secret: process.env.JWT_SECRET || 'xvnn_super_secret_key_cambiar_en_produccion_2024_x9k2m',
+    secret: 'xvnn_super_secret_key_cambiar_en_produccion_2024_x9k2m',
     expiresIn: '7d'
   },
 
   // ============ POSTGRESQL ============
-  // Si existe DATABASE_URL (Render, Railway, Neon, Supabase) la usa.
-  // Si no, usa los valores locales de abajo.
   postgres: {
-    connectionString: process.env.DATABASE_URL || null,
-    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+    connectionString: 'postgresql://xvnn_user:zfT1aJE7kES49Sl5uLAEeshT9DkCCrTE@dpg-dajo5615efls739muqr0-a/xvnn',
+    ssl: { rejectUnauthorized: false },
     host: 'localhost',
     port: 5432,
     database: 'xvnn',
@@ -54,10 +51,10 @@ export const CONFIG = {
     ]
   },
 
-  // ============ HLS (transcodificación) ============
+  // ============ HLS ============
   hls: {
-    segmentDuration: 1,        // 1 segundo por segmento
-    gopFrames: 25,             // keyframe cada 25 frames (~1s a 25fps)
+    segmentDuration: 1,
+    gopFrames: 25,
     maxConcurrentJobs: 2,
     concurrencyUploads: 8,
 
@@ -71,22 +68,12 @@ export const CONFIG = {
 
   // ============ TELEGRAM BOT ============
   telegram: {
-    // 🔑 Pega aquí el token que te dio @BotFather
-    botToken: 'TU_TOKEN_AQUI',
-
-    // 🆔 Tus IDs de Telegram (opcional, para comandos de admin)
+    botToken: '8901669467:AAGk9ry3qqW8NEM-H-wGgiR2N0IP4CF3EQw',
     adminIds: [],
-
-    // Cuenta del bot en XVNN (se crea automáticamente en la BD)
     botUsername: 'xvnn_bot',
     botName: 'XVNN Bot',
-
-    // Long polling
     pollTimeout: 30,
     pollIntervalMs: 500,
-
-    // ⚡ Límite de descarga por enlace directo
-    // Ajusta según el disco disponible del servidor
     maxLinkDownloadMB: 500
   },
 
