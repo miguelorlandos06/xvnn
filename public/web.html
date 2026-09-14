@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>XVNN - Inicio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --black: #0a0a0a; --black-2: #141414; --black-3: #1c1c1c;
+    --red: #e50914; --red-hover: #ff1a26; --gray: #8a8a8a; --white: #fff;
+    --header-h: 62px;
+  }
+  html, body { height: 100%; font-family: 'Poppins', sans-serif; background: var(--black); color: var(--white); overflow-x: hidden; }
+  body { padding-bottom: 80px; }
+
+  .top-header {
+    position: fixed; top: 0; left: 0; right: 0; height: var(--header-h);
+    background: rgba(10,10,10,0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px; z-index: 100;
+  }
+  .page-title { font-size: 20px; font-weight: 700; letter-spacing: 2px; display: flex; align-items: center; gap: 8px; }
+  .page-title .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); box-shadow: 0 0 12px var(--red); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(0.85); } }
+
+  .category-selector { position: relative; }
+  .category-btn {
+    display: flex; align-items: center; gap: 6px; padding: 8px 12px;
+    background: var(--black-2); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;
+    color: var(--white); font-family: 'Poppins', sans-serif; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all 0.25s ease;
+  }
+  .category-btn:hover, .category-btn:active { border-color: var(--red); background: var(--black-3); }
+  .category-btn svg { width: 14px; height: 14px; transition: transform 0.25s ease; }
+  .category-btn.open svg.chevron { transform: rotate(180deg); }
+
+  .category-dropdown {
+    position: absolute; top: calc(100% + 8px); right: 0; min-width: 160px;
+    background: var(--black-2); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;
+    padding: 6px; box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+    opacity: 0; visibility: hidden; transform: translateY(-8px) scale(0.96); transform-origin: top right;
+    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1); z-index: 101;
+  }
+  .category-dropdown.open { opacity: 1; visibility: visible; transform: translateY(0) scale(1); }
+
+  .category-option {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    width: 100%; padding: 10px 12px; background: transparent; border: none;
+    color: var(--white); font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: 500;
+    text-align: left; cursor: pointer; border-radius: 8px; transition: all 0.15s ease;
+  }
+  .category-option:hover, .category-option:active { background: rgba(229,9,20,0.12); color: var(--red); }
+  .category-option.active { background: rgba(229,9,20,0.15); color: var(--red); font-weight: 600; }
+  .category-option .check { width: 14px; height: 14px; opacity: 0; color: var(--red); }
+  .category-option.active .check { opacity: 1; }
+
+  .videos-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
+    padding: calc(var(--header-h) + 16px) 14px 20px;
+    max-width: 1200px; margin: 0 auto;
+  }
+  .video-card {
+    background: var(--black-2); border-radius: 14px; overflow: hidden; cursor: pointer;
+    transition: transform 0.25s ease, box-shadow 0.25s ease; position: relative;
+    animation: cardIn 0.4s ease backwards;
+  }
+  @keyframes cardIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+  .video-card:active { transform: scale(0.97); }
+  @media (hover: hover) {
+    .video-card:hover { transform: translateY(-3px); box-shadow: 0 12px 30px rgba(229,9,20,0.2), 0 0 0 1px rgba(229,9,20,0.3); }
+  }
+  .thumbnail-wrapper { position: relative; width: 100%; aspect-ratio: 3 / 4; background: var(--black-3); overflow: hidden; }
+  .thumbnail-wrapper img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.4s ease; }
+  .video-card:hover .thumbnail-wrapper img { transform: scale(1.05); }
+  .duration-badge {
+    position: absolute; bottom: 8px; right: 8px; padding: 4px 8px;
+    background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    border-radius: 6px; font-size: 11px; font-weight: 600; color: var(--white);
+    letter-spacing: 0.5px; display: flex; align-items: center; gap: 4px; z-index: 2;
+  }
+  .duration-badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--red); box-shadow: 0 0 6px var(--red); }
+  .play-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 50%);
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.3s ease; z-index: 1;
+  }
+  .video-card:hover .play-overlay { opacity: 1; }
+  .play-icon {
+    width: 46px; height: 46px; border-radius: 50%; background: var(--red);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 8px 20px rgba(229,9,20,0.5);
+    transform: scale(0.8); transition: transform 0.3s ease;
+  }
+  .video-card:hover .play-icon { transform: scale(1); }
+  .play-icon svg { width: 20px; height: 20px; color: var(--white); margin-left: 2px; }
+  .video-info { padding: 10px 12px 12px; }
+  .video-title {
+    font-size: 13px; font-weight: 600; color: var(--white); line-height: 1.35;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    margin-bottom: 4px;
+  }
+  .video-meta { font-size: 11px; color: var(--gray); font-weight: 400; display: flex; align-items: center; gap: 6px; }
+  .video-meta .views::after { content: '•'; margin-left: 6px; color: #444; }
+
+  .empty-state { grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: var(--gray); }
+  .empty-state svg { width: 60px; height: 60px; color: #333; margin-bottom: 16px; }
+  .empty-state h3 { font-size: 16px; font-weight: 600; color: #666; margin-bottom: 6px; }
+  .empty-state p { font-size: 13px; }
+
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0; height: 66px;
+    background: rgba(10,10,10,0.96); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(255,255,255,0.06);
+    display: flex; align-items: center; justify-content: space-around;
+    padding: 0 8px 6px; z-index: 100;
+  }
+  .nav-item {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px; padding: 6px; background: transparent; border: none;
+    color: var(--gray); font-family: 'Poppins', sans-serif; font-size: 10px; font-weight: 500;
+    cursor: pointer; text-decoration: none; transition: color 0.2s ease;
+  }
+  .nav-item svg { width: 22px; height: 22px; }
+  .nav-item.active { color: var(--red); }
+  .nav-item.active svg { filter: drop-shadow(0 0 8px rgba(229,9,20,0.5)); }
+
+  @media (min-width: 480px) { .videos-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (min-width: 768px) { .videos-grid { grid-template-columns: repeat(4, 1fr); gap: 16px; } .page-title { font-size: 22px; } }
+  @media (min-width: 1024px) { .videos-grid { grid-template-columns: repeat(5, 1fr); } }
+</style>
+</head>
+<body>
+
+<header class="top-header">
+  <div class="page-title">
+    <span class="dot"></span>
+    XVNN
+  </div>
+  <div class="category-selector">
+    <button class="category-btn" id="categoryBtn" aria-haspopup="true" aria-expanded="false">
+      <span id="currentCategory">Hetero</span>
+      <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 9 12 15 18 9"></polyline>
+      </svg>
+    </button>
+    <div class="category-dropdown" id="categoryDropdown" role="menu">
+      <button class="category-option" data-category="Hetero"><span>Hetero</span><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>
+      <button class="category-option" data-category="Gay"><span>Gay</span><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>
+      <button class="category-option" data-category="Bi"><span>Bi</span><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>
+      <button class="category-option" data-category="Trans"><span>Trans</span><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>
+    </div>
+  </div>
+</header>
+
+<main class="videos-grid" id="videosGrid"></main>
+
+<nav class="bottom-nav">
+  <a href="web.html" class="nav-item active">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+      <polyline points="9 22 9 12 15 12 15 22"></polyline>
+    </svg>
+    <span>Inicio</span>
+  </a>
+  <a href="https://t.me/xvnn_bot" target="_blank" rel="noopener" class="nav-item">
+    <svg viewBox="0 0 24 24" fill="currentColor">
+      <path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/>
+    </svg>
+    <span>Publicar</span>
+  </a>
+  <a href="profile.html" class="nav-item">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+      <circle cx="12" cy="7" r="4"></circle>
+    </svg>
+    <span>Perfil</span>
+  </a>
+</nav>
+
+<script>
+  const API_URL = window.location.origin + '/api';
+  const CATEGORIES = ['Hetero', 'Gay', 'Bi', 'Trans'];
+
+  let currentCategory = localStorage.getItem('xvnn_category') || 'Hetero';
+  if (!CATEGORIES.includes(currentCategory)) currentCategory = 'Hetero';
+
+  const categoryBtn = document.getElementById('categoryBtn');
+  const categoryDropdown = document.getElementById('categoryDropdown');
+  const currentCategoryEl = document.getElementById('currentCategory');
+  const categoryOptions = document.querySelectorAll('.category-option');
+  const videosGrid = document.getElementById('videosGrid');
+
+  (function checkAuth() {
+    const token = localStorage.getItem('xvnn_token');
+    if (!token) window.location.href = 'auth.html';
+  })();
+
+  function toggleDropdown(open) {
+    const isOpen = open !== undefined ? open : !categoryDropdown.classList.contains('open');
+    categoryDropdown.classList.toggle('open', isOpen);
+    categoryBtn.classList.toggle('open', isOpen);
+    categoryBtn.setAttribute('aria-expanded', isOpen);
+  }
+
+  categoryBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleDropdown();
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.category-selector')) toggleDropdown(false);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') toggleDropdown(false);
+  });
+
+  categoryOptions.forEach(opt => {
+    opt.addEventListener('click', () => {
+      const category = opt.dataset.category;
+      if (category === currentCategory) {
+        toggleDropdown(false);
+        return;
+      }
+      currentCategory = category;
+      localStorage.setItem('xvnn_category', category);
+      currentCategoryEl.textContent = category;
+      updateActiveOption();
+      toggleDropdown(false);
+      renderVideos();
+    });
+  });
+
+  function updateActiveOption() {
+    categoryOptions.forEach(opt => {
+      opt.classList.toggle('active', opt.dataset.category === currentCategory);
+    });
+    currentCategoryEl.textContent = currentCategory;
+  }
+
+  async function fetchVideos(category) {
+    const res = await fetch(`${API_URL}/videos?category=${category}`);
+    const data = await res.json();
+    return data.videos || [];
+  }
+
+  async function renderVideos() {
+    videosGrid.style.opacity = '0';
+
+    try {
+      const videos = await fetchVideos(currentCategory);
+
+      if (videos.length === 0) {
+        videosGrid.innerHTML = `
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="20" height="20" rx="2.18"></rect>
+              <line x1="7" y1="2" x2="7" y2="22"></line>
+              <line x1="17" y1="2" x2="17" y2="22"></line>
+              <line x1="2" y1="12" x2="22" y2="12"></line>
+            </svg>
+            <h3>No hay videos aún</h3>
+            <p>Sé el primero en publicar uno desde Telegram</p>
+          </div>
+        `;
+        videosGrid.style.opacity = '1';
+        return;
+      }
+
+      videosGrid.innerHTML = videos.map((video, i) => `
+        <article class="video-card" data-id="${video.id}" style="animation-delay: ${i * 0.04}s">
+          <div class="thumbnail-wrapper">
+            <img src="${video.thumb}" alt="${escapeHtml(video.title)}" loading="lazy">
+            <div class="play-overlay">
+              <div class="play-icon">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+              </div>
+            </div>
+            <div class="duration-badge">${video.duration}</div>
+          </div>
+          <div class="video-info">
+            <h3 class="video-title">${escapeHtml(video.title)}</h3>
+            <div class="video-meta">
+              <span class="views">${video.views} vistas</span>
+            </div>
+          </div>
+        </article>
+      `).join('');
+
+      document.querySelectorAll('.video-card').forEach(card => {
+        card.addEventListener('click', () => {
+          localStorage.setItem('xvnn_current_video', card.dataset.id);
+          localStorage.setItem('xvnn_current_category', currentCategory);
+          window.location.href = `watch.html?id=${card.dataset.id}`;
+        });
+      });
+
+      videosGrid.style.opacity = '1';
+      videosGrid.style.transition = 'opacity 0.25s ease';
+    } catch (err) {
+      console.error('Error cargando videos:', err);
+      videosGrid.innerHTML = `
+        <div class="empty-state">
+          <h3>Error cargando videos</h3>
+          <p>Revisa tu conexión e intenta de nuevo</p>
+        </div>
+      `;
+      videosGrid.style.opacity = '1';
+    }
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text || '';
+    return div.innerHTML;
+  }
+
+  updateActiveOption();
+  renderVideos();
+</script>
+
+</body>
+</html>
