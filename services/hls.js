@@ -1,5 +1,6 @@
 // services/hls.js
 import ffmpeg from 'fluent-ffmpeg';
+import { execSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
@@ -9,9 +10,44 @@ import { uploadFile, publicUrl } from './s3.js';
 import { CONFIG } from '../config.js';
 
 // ============================================================
-//  FFMPEG: usar el binario del sistema (Render con Docker)
+//  DETECCIÓN DE FFMPEG Y FFPROBE EN EL SISTEMA
 // ============================================================
-ffmpeg.setFfmpegPath('/usr/bin/ffmpeg');
+function findBinary(name) {
+  try {
+    const found = execSync(`which ${name}`, { encoding: 'utf-8' }).trim();
+    if (found && fs.existsSync(found)) {
+      console.log(`✅ ${name} encontrado en: ${found}`);
+      return found;
+    }
+  } catch (e) {}
+
+  const candidates = [
+    `/usr/bin/${name}`,
+    `/usr/local/bin/${name}`,
+    `/bin/${name}`,
+    `/opt/homebrew/bin/${name}`,
+    `/data/data/com.termux/files/usr/bin/${name}`
+  ];
+
+  for (const c of candidates) {
+    if (fs.existsSync(c)) {
+      console.log(`✅ ${name} encontrado en: ${c}`);
+      return c;
+    }
+  }
+
+  console.error(`❌ ${name} NO ENCONTRADO en el sistema`);
+  return name;
+}
+
+const FFMPEG_PATH = findBinary('ffmpeg');
+const FFPROBE_PATH = findBinary('ffprobe');
+
+ffmpeg.setFfmpegPath(FFMPEG_PATH);
+ffmpeg.setFfprobePath(FFPROBE_PATH);
+
+console.log(`🎬 FFmpeg:  ${FFMPEG_PATH}`);
+console.log(`🎬 FFprobe: ${FFPROBE_PATH}`);
 
 const QUALITY_PROFILES = CONFIG.hls.qualities;
 const HLS_CONFIG = CONFIG.hls;
@@ -38,7 +74,7 @@ function releaseSlot() {
 }
 
 // ============================================================
-//  FUNCIÓN PRINCIPAL
+//  TRANSCODIFICACIÓN PRINCIPAL
 // ============================================================
 export async function transcodeToHLS(input, videoId, onProgress = () => {}) {
   await acquireSlot();
@@ -59,13 +95,11 @@ export async function transcodeToHLS(input, videoId, onProgress = () => {}) {
 
     logDiskSpace(tmpDir);
 
-    // ============ 1. TRANSCODIFICAR ============
     onProgress(0, 'transcoding');
     const duration = await runFFmpeg(inputPath, hlsDir, (pct) =>
       onProgress(pct, 'transcoding')
     );
 
-    // ============ 2. SUBIR A S3 ============
     onProgress(0, 'uploading');
     const baseKey = `videos/${videoId}/hls`;
     const filesToUpload = collectFiles(hlsDir);
@@ -100,8 +134,6 @@ export async function transcodeToHLS(input, videoId, onProgress = () => {}) {
 
     onProgress(100, 'done');
 
-    console.log(`✅ HLS listo: ${uploadedKeys.length} archivos subidos a S3`);
-
     return {
       masterKey,
       masterUrl: publicUrl(masterKey),
@@ -115,46 +147,57 @@ export async function transcodeToHLS(input, videoId, onProgress = () => {}) {
         fs.rmSync(tmpDir, { recursive: true, force: true });
       }
     } catch (err) {
-      console.error('⚠️  Error limpiando tmp HLS:', err.message);
+      console.error('⚠️  Error limpiando tmp:', err.message);
     }
     releaseSlot();
   }
 }
 
 // ============================================================
-//  FFMPEG: EJECUCIÓN CON LOGS COMPLETOS
+//  FFMPEG: EJECUCIÓN CON FILTER_COMPLEX
 // ============================================================
 function runFFmpeg(inputPath, hlsDir, onProgress) {
   return new Promise((resolve, reject) => {
     ffmpeg.ffprobe(inputPath, (err, metadata) => {
       if (err) {
         console.error('❌ ffprobe falló:', err.message);
-        console.error('   inputPath:', inputPath);
         return reject(new Error(`ffprobe: ${err.message}`));
       }
 
-      // ============ LOG DE METADATA ============
+      // ============ LOG METADATA ============
       console.log('');
       console.log('📹 ─── METADATA DEL VIDEO ───');
       console.log('   Formato:', metadata.format.format_name);
       console.log('   Duración:', metadata.format.duration, 's');
       console.log('   Tamaño:', (Number(metadata.format.size) / 1024 / 1024).toFixed(2), 'MB');
       console.log('   Bitrate:', metadata.format.bit_rate);
+
+      // Detectar FPS y calcular GOP
+      const videoStream = metadata.streams.find(s => s.codec_type === 'video');
+      let fps = 30;
+      if (videoStream && videoStream.r_frame_rate) {
+        const [num, den] = videoStream.r_frame_rate.split('/').map(Number);
+        fps = Math.round(num / den);
+      }
+
+      // GOP = FPS × duración del segmento
+      const gop = fps * HLS_CONFIG.segmentDuration;
+
+      console.log('   FPS detectado:', fps);
+      console.log('   GOP calculado:', gop);
       console.log('   Streams:');
       metadata.streams.forEach((s, i) => {
         if (s.codec_type === 'video') {
-          console.log(`     [${i}] video: ${s.codec_name} ${s.width}x${s.height} pix_fmt=${s.pix_fmt} fps=${s.r_frame_rate}`);
+          console.log(`     [${i}] video: ${s.codec_name} ${s.width}x${s.height} pix_fmt=${s.pix_fmt}`);
         } else if (s.codec_type === 'audio') {
-          console.log(`     [${i}] audio: ${s.codec_name} ${s.channels}ch ${s.sample_rate}Hz`);
-        } else {
-          console.log(`     [${i}] ${s.codec_type}: ${s.codec_name}`);
+          console.log(`     [${i}] audio: ${s.codec_name} ${s.channels}ch`);
         }
       });
       console.log('   ───────────────────────');
       console.log('');
 
       const totalDuration = parseFloat(metadata.format.duration) || 0;
-      const outputOptions = buildFFmpegOptions(hlsDir);
+      const outputOptions = buildFFmpegOptions(hlsDir, gop);
 
       let stderrOutput = '';
 
@@ -185,17 +228,13 @@ function runFFmpeg(inputPath, hlsDir, onProgress) {
           console.error('');
           console.error('❌ ❌ ❌  FFMPEG ERROR  ❌ ❌ ❌');
           console.error('   Mensaje:', err.message);
-          console.error('   Signal:', err.signal || 'n/a');
-          console.error('');
+
           console.error('   ─── STDERR COMPLETO ───');
           const lines = stderrOutput.split('\n');
-          const tail = lines.slice(-60);
-          tail.forEach(l => console.error('   >', l));
+          lines.slice(-60).forEach(l => console.error('   >', l));
           console.error('   ─── FIN STDERR ───');
-          console.error('');
 
           detectErrorCause(stderrOutput);
-
           reject(new Error(`FFmpeg: ${err.message}`));
         })
         .run();
@@ -204,19 +243,87 @@ function runFFmpeg(inputPath, hlsDir, onProgress) {
 }
 
 // ============================================================
+//  CONSTRUIR OPCIONES CON -filter_complex
+// ============================================================
+function buildFFmpegOptions(hlsDir, gop) {
+  const opts = [];
+  const n = QUALITY_PROFILES.length;
+
+  // ============ FILTER COMPLEX: split + scale ============
+  // [0:v]split=N[v1][v2][v3][v4];
+  // [v1]scale=-2:240[v1out];
+  // [v2]scale=-2:360[v2out]; ...
+  const splitLabels = QUALITY_PROFILES.map((_, i) => `[v${i + 1}]`).join('');
+  const scaleChains = QUALITY_PROFILES.map((q, i) => {
+    const height = q.resolution.split('x')[1];
+    return `[v${i + 1}]scale=-2:${height}[v${i + 1}out]`;
+  }).join('; ');
+
+  const filterComplex = `[0:v]split=${n}${splitLabels}; ${scaleChains}`;
+
+  opts.push('-filter_complex', filterComplex);
+
+  // ============ MAPEAR CADA CALIDAD ============
+  for (let i = 0; i < n; i++) {
+    opts.push('-map', `[v${i + 1}out]`);
+  }
+  // Mapear audio a cada calidad
+  for (let i = 0; i < n; i++) {
+    opts.push('-map', '0:a:0?');
+  }
+
+  // ============ CONFIG POR CALIDAD ============
+  QUALITY_PROFILES.forEach((q, i) => {
+    opts.push(`-c:v:${i}`, 'libx264');
+    opts.push(`-b:v:${i}`, q.videoBitrate);
+    opts.push(`-maxrate:v:${i}`, q.maxrate);
+    opts.push(`-bufsize:v:${i}`, q.bufsize);
+    opts.push(`-profile:v:${i}`, 'main');
+    opts.push(`-level:v:${i}`, '3.1');
+    opts.push(`-pix_fmt:v:${i}`, 'yuv420p');
+
+    opts.push(`-c:a:${i}`, 'aac');
+    opts.push(`-b:a:${i}`, q.audioBitrate);
+    opts.push(`-ac:a:${i}`, '2');
+    opts.push(`-ar:a:${i}`, '44100');
+  });
+
+  // ============ GOP ALINEADO CON SEGMENTOS ============
+  opts.push('-preset', 'veryfast');
+  opts.push('-pix_fmt', 'yuv420p');
+  opts.push('-g', String(gop));
+  opts.push('-keyint_min', String(gop));
+  opts.push('-sc_threshold', '0');
+
+  // ============ VAR STREAM MAP ============
+  const streamMap = QUALITY_PROFILES.map((q, i) => `v:${i},a:${i}`).join(' ');
+  opts.push('-var_stream_map', streamMap);
+
+  // ============ HLS ============
+  opts.push('-hls_time', String(HLS_CONFIG.segmentDuration));
+  opts.push('-hls_playlist_type', 'vod');
+  opts.push('-hls_segment_filename', path.join(hlsDir, '%v', 'seg_%05d.ts'));
+  opts.push('-hls_flags', 'independent_segments');
+  opts.push('-master_pl_name', 'master.m3u8');
+  opts.push('-f', 'hls');
+
+  return opts;
+}
+
+// ============================================================
 //  DETECCIÓN AUTOMÁTICA DE CAUSA
 // ============================================================
 function detectErrorCause(stderr) {
   const lower = stderr.toLowerCase();
-
   const causes = [
-    { match: /no space left on device/, msg: '💾 DISCO LLENO: reduce maxLinkDownloadMB o sube el plan de Render.' },
-    { match: /cannot allocate memory|out of memory/, msg: '🧠 SIN MEMORIA RAM: reduce calidades o maxConcurrentJobs.' },
-    { match: /invalid color space|unsupported color space/, msg: '🎨 INVALID COLOR SPACE: bug de FFmpeg 7.1+.' },
-    { match: /unknown decoder|decoder.*not found|no decoder/, msg: '🎞 CÓDEC NO SOPORTADO: instala ffmpeg con todos los códecs.' },
+    { match: /no space left on device/, msg: '💾 DISCO LLENO: reduce maxLinkDownloadMB.' },
+    { match: /cannot allocate memory|out of memory/, msg: '🧠 SIN MEMORIA RAM: reduce calidades.' },
+    { match: /invalid color space/, msg: '🎨 INVALID COLOR SPACE: el -pix_fmt yuv420p debería arreglarlo.' },
+    { match: /unknown decoder|decoder.*not found|no decoder/, msg: '🎞 CÓDEC NO SOPORTADO: instala ffmpeg completo.' },
     { match: /invalid data found|moov atom not found/, msg: '📁 ARCHIVO CORRUPTO o INCOMPLETO.' },
     { match: /permission denied/, msg: '🔒 PERMISO DENEGADO en /tmp.' },
-    { match: /conversion failed/, msg: '⚠️  CONVERSION FAILED genérico: revisa el stderr arriba.' },
+    { match: /filter_complex/, msg: '🎬 ERROR EN FILTER_COMPLEX: revisa los mapas de streams.' },
+    { match: /conversion failed/, msg: '⚠️  CONVERSION FAILED: revisa el stderr.' },
     { match: /eacces|enoent/, msg: '🚫 NO SE ENCUENTRA FFMPEG: revisa el Dockerfile.' }
   ];
 
@@ -229,62 +336,7 @@ function detectErrorCause(stderr) {
     }
   }
 
-  console.error('');
-  console.error('🎯 CAUSA: no identificada automáticamente. Revisa el stderr.');
-  console.error('');
-}
-
-// ============================================================
-//  CONSTRUIR OPCIONES DE FFMPEG
-// ============================================================
-function buildFFmpegOptions(hlsDir) {
-  const opts = [];
-
-  opts.push('-preset', 'veryfast');
-  opts.push('-movflags', '+faststart');
-
-  // Fix para "Invalid color space"
-  opts.push('-pix_fmt', 'yuv420p');
-
-  // GOP alineado con segmentos de 1s
-  opts.push('-g', String(HLS_CONFIG.gopFrames));
-  opts.push('-keyint_min', String(HLS_CONFIG.gopFrames));
-  opts.push('-sc_threshold', '0');
-
-  // HLS
-  opts.push('-hls_time', String(HLS_CONFIG.segmentDuration));
-  opts.push('-hls_playlist_type', 'vod');
-  opts.push('-hls_segment_filename', path.join(hlsDir, '%v', 'seg_%05d.ts'));
-  opts.push('-hls_flags', 'independent_segments');
-  opts.push('-master_pl_name', 'master.m3u8');
-
-  // Mapeos de streams
-  const streamMap = [];
-  QUALITY_PROFILES.forEach((_, i) => {
-    opts.push('-map', '0:v:0');
-    opts.push('-map', '0:a:0?');
-    streamMap.push(`v:${i},a:${i}`);
-  });
-  opts.push('-var_stream_map', streamMap.join(' '));
-
-  // Config por calidad
-  QUALITY_PROFILES.forEach((p, i) => {
-    opts.push(`-c:v:${i}`, 'libx264');
-    opts.push(`-b:v:${i}`, p.videoBitrate);
-    opts.push(`-maxrate:v:${i}`, p.maxrate);
-    opts.push(`-bufsize:v:${i}`, p.bufsize);
-    opts.push(`-s:v:${i}`, p.resolution);
-    opts.push(`-profile:v:${i}`, 'main');
-    opts.push(`-level:v:${i}`, '3.1');
-    opts.push(`-pix_fmt:v:${i}`, 'yuv420p');
-
-    opts.push(`-c:a:${i}`, 'aac');
-    opts.push(`-b:a:${i}`, p.audioBitrate);
-    opts.push(`-ac:a:${i}`, '2');
-    opts.push(`-ar:a:${i}`, '44100');
-  });
-
-  return opts;
+  console.error('🎯 CAUSA: no identificada. Revisa el stderr.');
 }
 
 // ============================================================
@@ -321,8 +373,7 @@ function logDiskSpace(dir) {
     if (fs.statfs) {
       const stats = fs.statfsSync(dir);
       const freeGB = (stats.bfree * stats.bsize) / (1024 ** 3);
-      const totalGB = (stats.blocks * stats.bsize) / (1024 ** 3);
-      console.log(`💾 Disco: ${freeGB.toFixed(2)} GB libres de ${totalGB.toFixed(2)} GB`);
+      console.log(`💾 Disco libre: ${freeGB.toFixed(2)} GB`);
     }
   } catch {}
 }
