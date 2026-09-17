@@ -113,3 +113,17 @@ DROP TRIGGER IF EXISTS trg_reactions_counts ON reactions;
 CREATE TRIGGER trg_reactions_counts
 AFTER INSERT OR UPDATE OR DELETE ON reactions
 FOR EACH ROW EXECUTE FUNCTION update_video_counts();
+
+-- ==================== SESIONES DE TELEGRAM ====================
+CREATE TABLE IF NOT EXISTS telegram_sessions (
+  telegram_user_id BIGINT PRIMARY KEY,
+  xvnn_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  xvnn_username VARCHAR(50) NOT NULL,
+  state VARCHAR(30) DEFAULT 'authenticated',
+  failed_attempts INTEGER DEFAULT 0,
+  last_activity TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_telegram_sessions_user
+  ON telegram_sessions(xvnn_user_id);
