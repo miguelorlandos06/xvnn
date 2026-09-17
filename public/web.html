@@ -3,157 +3,332 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>XVNN - Inicio</title>
+<title>XVNN</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
   :root {
-    --black: #0a0a0a; --black-2: #141414; --black-3: #1c1c1c;
-    --red: #e50914; --red-hover: #ff1a26; --gray: #8a8a8a; --white: #fff;
-    --header-h: 62px;
+    --bg: #0f0f0f;
+    --bg-2: #181818;
+    --bg-3: #212121;
+    --bg-hover: #272727;
+    --border: #272727;
+    --red: #e50914;
+    --text: #f1f1f1;
+    --text-2: #aaaaaa;
+    --text-3: #717171;
+    --header-h: 56px;
   }
-  html, body { height: 100%; font-family: 'Poppins', sans-serif; background: var(--black); color: var(--white); overflow-x: hidden; }
-  body { padding-bottom: 80px; }
 
+  html, body {
+    height: 100%;
+    font-family: 'Roboto', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body { padding-bottom: 70px; }
+
+  /* ============ HEADER ============ */
   .top-header {
-    position: fixed; top: 0; left: 0; right: 0; height: var(--header-h);
-    background: rgba(10,10,10,0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 16px; z-index: 100;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: var(--header-h);
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    z-index: 100;
+    border-bottom: 1px solid var(--border);
   }
-  .page-title { font-size: 20px; font-weight: 700; letter-spacing: 2px; display: flex; align-items: center; gap: 8px; }
-  .page-title .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); box-shadow: 0 0 12px var(--red); animation: pulse 2s infinite; }
-  @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(0.85); } }
 
-  .category-selector { position: relative; }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 20px;
+    font-weight: 500;
+    letter-spacing: -0.5px;
+  }
+
+  .brand span { color: var(--red); }
+
+  /* ============ SELECTOR CATEGORÍA ============ */
   .category-btn {
-    display: flex; align-items: center; gap: 6px; padding: 8px 12px;
-    background: var(--black-2); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;
-    color: var(--white); font-family: 'Poppins', sans-serif; font-size: 13px; font-weight: 600;
-    cursor: pointer; transition: all 0.25s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
   }
-  .category-btn:hover, .category-btn:active { border-color: var(--red); background: var(--black-3); }
-  .category-btn svg { width: 14px; height: 14px; transition: transform 0.25s ease; }
-  .category-btn.open svg.chevron { transform: rotate(180deg); }
 
-  .category-dropdown {
-    position: absolute; top: calc(100% + 8px); right: 0; min-width: 160px;
-    background: var(--black-2); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;
-    padding: 6px; box-shadow: 0 20px 40px rgba(0,0,0,0.6);
-    opacity: 0; visibility: hidden; transform: translateY(-8px) scale(0.96); transform-origin: top right;
-    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1); z-index: 101;
+  .category-btn:hover { background: var(--bg-hover); }
+
+  .category-btn svg {
+    width: 12px;
+    height: 12px;
+    transition: transform 0.2s ease;
   }
-  .category-dropdown.open { opacity: 1; visibility: visible; transform: translateY(0) scale(1); }
+
+  .category-btn.open svg { transform: rotate(180deg); }
+
+  /* ============ DROPDOWN ============ */
+  .category-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 16px;
+    min-width: 160px;
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-6px);
+    transition: all 0.15s ease;
+    z-index: 101;
+  }
+
+  .category-dropdown.open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+  }
 
   .category-option {
-    display: flex; align-items: center; justify-content: space-between; gap: 8px;
-    width: 100%; padding: 10px 12px; background: transparent; border: none;
-    color: var(--white); font-family: 'Poppins', sans-serif; font-size: 14px; font-weight: 500;
-    text-align: left; cursor: pointer; border-radius: 8px; transition: all 0.15s ease;
+    display: block;
+    width: 100%;
+    padding: 10px 12px;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+    text-align: left;
+    cursor: pointer;
+    border-radius: 4px;
   }
-  .category-option:hover, .category-option:active { background: rgba(229,9,20,0.12); color: var(--red); }
-  .category-option.active { background: rgba(229,9,20,0.15); color: var(--red); font-weight: 600; }
-  .category-option .check { width: 14px; height: 14px; opacity: 0; color: var(--red); }
-  .category-option.active .check { opacity: 1; }
 
+  .category-option:hover { background: var(--bg-hover); }
+
+  .category-option.active {
+    background: var(--bg-hover);
+    font-weight: 500;
+  }
+
+  /* ============ GRID ============ */
   .videos-grid {
-    display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
-    padding: calc(var(--header-h) + 16px) 14px 20px;
-    max-width: 1200px; margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: calc(var(--header-h) + 16px) 16px 20px;
+    max-width: 1600px;
+    margin: 0 auto;
   }
+
   .video-card {
-    background: var(--black-2); border-radius: 14px; overflow: hidden; cursor: pointer;
-    transition: transform 0.25s ease, box-shadow 0.25s ease; position: relative;
-    animation: cardIn 0.4s ease backwards;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
   }
-  @keyframes cardIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
-  .video-card:active { transform: scale(0.97); }
-  @media (hover: hover) {
-    .video-card:hover { transform: translateY(-3px); box-shadow: 0 12px 30px rgba(229,9,20,0.2), 0 0 0 1px rgba(229,9,20,0.3); }
+
+  .video-card:active { opacity: 0.7; }
+
+  /* Miniatura 16:9 (estilo YouTube) */
+  .thumb {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: var(--bg-2);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 10px;
   }
-  .thumbnail-wrapper { position: relative; width: 100%; aspect-ratio: 3 / 4; background: var(--black-3); overflow: hidden; }
-  .thumbnail-wrapper img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.4s ease; }
-  .video-card:hover .thumbnail-wrapper img { transform: scale(1.05); }
-  .duration-badge {
-    position: absolute; bottom: 8px; right: 8px; padding: 4px 8px;
-    background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-    border-radius: 6px; font-size: 11px; font-weight: 600; color: var(--white);
-    letter-spacing: 0.5px; display: flex; align-items: center; gap: 4px; z-index: 2;
+
+  .thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
   }
-  .duration-badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--red); box-shadow: 0 0 6px var(--red); }
-  .play-overlay {
-    position: absolute; inset: 0;
-    background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 50%);
-    display: flex; align-items: center; justify-content: center;
-    opacity: 0; transition: opacity 0.3s ease; z-index: 1;
+
+  .duration {
+    position: absolute;
+    bottom: 6px;
+    right: 6px;
+    padding: 2px 5px;
+    background: rgba(0,0,0,0.85);
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #fff;
+    letter-spacing: 0.2px;
   }
-  .video-card:hover .play-overlay { opacity: 1; }
-  .play-icon {
-    width: 46px; height: 46px; border-radius: 50%; background: var(--red);
-    display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 8px 20px rgba(229,9,20,0.5);
-    transform: scale(0.8); transition: transform 0.3s ease;
+
+  /* Info debajo de la miniatura (estilo YouTube) */
+  .video-info {
+    display: flex;
+    gap: 10px;
   }
-  .video-card:hover .play-icon { transform: scale(1); }
-  .play-icon svg { width: 20px; height: 20px; color: var(--white); margin-left: 2px; }
-  .video-info { padding: 10px 12px 12px; }
+
+  .channel-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--red);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 500;
+    color: #fff;
+    flex-shrink: 0;
+    text-transform: uppercase;
+  }
+
+  .video-details { flex: 1; min-width: 0; }
+
   .video-title {
-    font-size: 13px; font-weight: 600; color: var(--white); line-height: 1.35;
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-    margin-bottom: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1.35;
+    margin-bottom: 3px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
-  .video-meta { font-size: 11px; color: var(--gray); font-weight: 400; display: flex; align-items: center; gap: 6px; }
-  .video-meta .views::after { content: '•'; margin-left: 6px; color: #444; }
 
-  .empty-state { grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: var(--gray); }
-  .empty-state svg { width: 60px; height: 60px; color: #333; margin-bottom: 16px; }
-  .empty-state h3 { font-size: 16px; font-weight: 600; color: #666; margin-bottom: 6px; }
-  .empty-state p { font-size: 13px; }
+  .video-meta {
+    font-size: 12px;
+    color: var(--text-3);
+    line-height: 1.4;
+  }
 
+  .video-meta .author {
+    color: var(--text-3);
+  }
+
+  /* ============ EMPTY ============ */
+  .empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--text-3);
+  }
+
+  .empty svg {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 16px;
+    opacity: 0.4;
+  }
+
+  .empty h3 {
+    font-size: 16px;
+    font-weight: 400;
+    margin-bottom: 6px;
+    color: var(--text-2);
+  }
+
+  .empty p {
+    font-size: 13px;
+  }
+
+  /* ============ BOTTOM NAV ============ */
   .bottom-nav {
-    position: fixed; bottom: 0; left: 0; right: 0; height: 66px;
-    background: rgba(10,10,10,0.96); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-    border-top: 1px solid rgba(255,255,255,0.06);
-    display: flex; align-items: center; justify-content: space-around;
-    padding: 0 8px 6px; z-index: 100;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 64px;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    z-index: 100;
   }
-  .nav-item {
-    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 3px; padding: 6px; background: transparent; border: none;
-    color: var(--gray); font-family: 'Poppins', sans-serif; font-size: 10px; font-weight: 500;
-    cursor: pointer; text-decoration: none; transition: color 0.2s ease;
-  }
-  .nav-item svg { width: 22px; height: 22px; }
-  .nav-item.active { color: var(--red); }
-  .nav-item.active svg { filter: drop-shadow(0 0 8px rgba(229,9,20,0.5)); }
 
-  @media (min-width: 480px) { .videos-grid { grid-template-columns: repeat(3, 1fr); } }
-  @media (min-width: 768px) { .videos-grid { grid-template-columns: repeat(4, 1fr); gap: 16px; } .page-title { font-size: 22px; } }
-  @media (min-width: 1024px) { .videos-grid { grid-template-columns: repeat(5, 1fr); } }
+  .nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    color: var(--text-3);
+    font-size: 10px;
+    font-weight: 500;
+    text-decoration: none;
+    padding: 6px;
+    transition: color 0.15s ease;
+  }
+
+  .nav-item svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .nav-item.active { color: var(--text); }
+  .nav-item.active svg { color: var(--red); }
+
+  /* ============ RESPONSIVE ============ */
+  @media (min-width: 640px) {
+    .videos-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px 16px;
+    }
+  }
+
+  @media (min-width: 900px) {
+    .videos-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  @media (min-width: 1200px) {
+    .videos-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
+  @media (min-width: 1600px) {
+    .videos-grid {
+      grid-template-columns: repeat(5, 1fr);
+    }
+  }
 </style>
 </head>
 <body>
 
 <header class="top-header">
-  <div class="page-title">
-    <span class="dot"></span>
-    XVNN
-  </div>
-  <div class="category-selector">
-    <button class="category-btn" id="categoryBtn" aria-haspopup="true" aria-expanded="false">
+  <div class="brand">XV<span>NN</span></div>
+
+  <div style="position: relative;">
+    <button class="category-btn" id="categoryBtn">
       <span id="currentCategory">Hetero</span>
-      <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="6 9 12 15 18 9"></polyline>
       </svg>
     </button>
-    <div class="category-dropdown" id="categoryDropdown" role="menu">
-      <button class="category-option" data-category="Hetero"><span>Hetero</span><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>
-      <button class="category-option" data-category="Gay"><span>Gay</span><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>
-      <button class="category-option" data-category="Bi"><span>Bi</span><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>
-      <button class="category-option" data-category="Trans"><span>Trans</span><svg class="check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></button>
+
+    <div class="category-dropdown" id="categoryDropdown">
+      <button class="category-option" data-cat="Hetero">Hetero</button>
+      <button class="category-option" data-cat="Gay">Gay</button>
+      <button class="category-option" data-cat="Bi">Bi</button>
+      <button class="category-option" data-cat="Trans">Trans</button>
     </div>
   </div>
 </header>
@@ -162,20 +337,21 @@
 
 <nav class="bottom-nav">
   <a href="web.html" class="nav-item active">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
       <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
       <polyline points="9 22 9 12 15 12 15 22"></polyline>
     </svg>
     <span>Inicio</span>
   </a>
   <a href="https://t.me/xvnn_bot" target="_blank" rel="noopener" class="nav-item">
-    <svg viewBox="0 0 24 24" fill="currentColor">
-      <path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19"></line>
+      <line x1="5" y1="12" x2="19" y2="12"></line>
     </svg>
     <span>Publicar</span>
   </a>
   <a href="profile.html" class="nav-item">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
       <circle cx="12" cy="7" r="4"></circle>
     </svg>
@@ -205,7 +381,6 @@
     const isOpen = open !== undefined ? open : !categoryDropdown.classList.contains('open');
     categoryDropdown.classList.toggle('open', isOpen);
     categoryBtn.classList.toggle('open', isOpen);
-    categoryBtn.setAttribute('aria-expanded', isOpen);
   }
 
   categoryBtn.addEventListener('click', (e) => {
@@ -214,23 +389,17 @@
   });
 
   document.addEventListener('click', (e) => {
-    if (!e.target.closest('.category-selector')) toggleDropdown(false);
-  });
-
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') toggleDropdown(false);
+    if (!e.target.closest('.category-btn') && !e.target.closest('.category-dropdown')) {
+      toggleDropdown(false);
+    }
   });
 
   categoryOptions.forEach(opt => {
     opt.addEventListener('click', () => {
-      const category = opt.dataset.category;
-      if (category === currentCategory) {
-        toggleDropdown(false);
-        return;
-      }
-      currentCategory = category;
-      localStorage.setItem('xvnn_category', category);
-      currentCategoryEl.textContent = category;
+      const cat = opt.dataset.cat;
+      if (cat === currentCategory) return toggleDropdown(false);
+      currentCategory = cat;
+      localStorage.setItem('xvnn_category', cat);
       updateActiveOption();
       toggleDropdown(false);
       renderVideos();
@@ -238,10 +407,10 @@
   });
 
   function updateActiveOption() {
-    categoryOptions.forEach(opt => {
-      opt.classList.toggle('active', opt.dataset.category === currentCategory);
-    });
     currentCategoryEl.textContent = currentCategory;
+    categoryOptions.forEach(opt => {
+      opt.classList.toggle('active', opt.dataset.cat === currentCategory);
+    });
   }
 
   async function fetchVideos(category) {
@@ -251,49 +420,49 @@
   }
 
   async function renderVideos() {
-    videosGrid.style.opacity = '0';
+    videosGrid.innerHTML = '<div class="empty"><p>Cargando...</p></div>';
 
     try {
       const videos = await fetchVideos(currentCategory);
 
       if (videos.length === 0) {
         videosGrid.innerHTML = `
-          <div class="empty-state">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="2" y="2" width="20" height="20" rx="2.18"></rect>
-              <line x1="7" y1="2" x2="7" y2="22"></line>
-              <line x1="17" y1="2" x2="17" y2="22"></line>
-              <line x1="2" y1="12" x2="22" y2="12"></line>
+          <div class="empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+              <polygon points="10 8 16 12 10 16 10 8" fill="currentColor"></polygon>
             </svg>
-            <h3>No hay videos aún</h3>
-            <p>Sé el primero en publicar uno desde Telegram</p>
+            <h3>No hay videos</h3>
+            <p>Sé el primero en publicar uno</p>
           </div>
         `;
-        videosGrid.style.opacity = '1';
         return;
       }
 
-      videosGrid.innerHTML = videos.map((video, i) => `
-        <article class="video-card" data-id="${video.id}" style="animation-delay: ${i * 0.04}s">
-          <div class="thumbnail-wrapper">
-            <img src="${video.thumb}" alt="${escapeHtml(video.title)}" loading="lazy">
-            <div class="play-overlay">
-              <div class="play-icon">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                </svg>
+      videosGrid.innerHTML = videos.map(video => {
+        const initial = (video.author?.name || '?').charAt(0).toUpperCase();
+        const views = video.views || '0';
+        const authorName = video.author?.name || 'Anónimo';
+
+        return `
+          <article class="video-card" data-id="${video.id}">
+            <div class="thumb">
+              <img src="${video.thumb}" alt="" loading="lazy">
+              <span class="duration">${video.duration}</span>
+            </div>
+            <div class="video-info">
+              <div class="channel-avatar">${escapeHtml(initial)}</div>
+              <div class="video-details">
+                <h3 class="video-title">${escapeHtml(video.title)}</h3>
+                <div class="video-meta">
+                  <div class="author">${escapeHtml(authorName)}</div>
+                  <div>${views} vistas</div>
+                </div>
               </div>
             </div>
-            <div class="duration-badge">${video.duration}</div>
-          </div>
-          <div class="video-info">
-            <h3 class="video-title">${escapeHtml(video.title)}</h3>
-            <div class="video-meta">
-              <span class="views">${video.views} vistas</span>
-            </div>
-          </div>
-        </article>
-      `).join('');
+          </article>
+        `;
+      }).join('');
 
       document.querySelectorAll('.video-card').forEach(card => {
         card.addEventListener('click', () => {
@@ -303,17 +472,9 @@
         });
       });
 
-      videosGrid.style.opacity = '1';
-      videosGrid.style.transition = 'opacity 0.25s ease';
     } catch (err) {
-      console.error('Error cargando videos:', err);
-      videosGrid.innerHTML = `
-        <div class="empty-state">
-          <h3>Error cargando videos</h3>
-          <p>Revisa tu conexión e intenta de nuevo</p>
-        </div>
-      `;
-      videosGrid.style.opacity = '1';
+      console.error(err);
+      videosGrid.innerHTML = '<div class="empty"><p>Error cargando videos</p></div>';
     }
   }
 
