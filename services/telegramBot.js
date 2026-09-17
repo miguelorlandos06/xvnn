@@ -18,10 +18,7 @@ const API_URL = `${API_ROOT}/bot${TOKEN}`;
 const FILE_API = `${API_ROOT}/file/bot${TOKEN}`;
 
 // ============ ESTADOS ============
-// Map<telegramUserId, { state, username, videoData, urls, tempMessageId, timestamp, failedAttempts, chatId }>
 const conversations = new Map();
-
-// Map<telegramUserId, { xvnnUserId, username, name, authenticatedAt }>
 const sessions = new Map();
 
 let offset = 0;
@@ -30,7 +27,7 @@ let running = false;
 // ============ LÍMITES ============
 const MAX_URLS_PER_FILE = 50;
 const MAX_FAILED_ATTEMPTS = 3;
-const CONVERSATION_TTL = 30 * 60 * 1000;   // 30 minutos
+const CONVERSATION_TTL = 30 * 60 * 1000;
 
 // ============ LIMPIEZA PERIÓDICA ============
 setInterval(() => {
@@ -243,21 +240,17 @@ async function handleMessage(msg) {
   const conv = conversations.get(userId);
   const session = sessions.get(userId);
 
-  // ============ COMANDOS ============
   if (text.startsWith('/start')) return handleStart(msg, session);
   if (text.startsWith('/logout')) return handleLogout(msg, session);
   if (text.startsWith('/help')) return handleHelp(msg, session);
   if (text.startsWith('/stats')) return handleStats(msg, session);
   if (text.startsWith('/cancel')) return handleCancel(msg);
 
-  // ============ ARCHIVO .TXT ============
   if (msg.document) return handleDocument(msg, session);
 
-  // ============ FLUJO DE AUTENTICACIÓN ============
   if (conv?.state === 'awaiting_username') return handleUsernameInput(msg, conv);
   if (conv?.state === 'awaiting_password') return handlePasswordInput(msg, conv);
 
-  // ============ DETECTAR ENLACE ============
   const urlMatch = text.match(/https?:\/\/[^\s]+/i);
   if (urlMatch) {
     if (!session) {
@@ -269,7 +262,6 @@ async function handleMessage(msg) {
     return handleLinkMessage(msg, urlMatch[0], session);
   }
 
-  // ============ TEXTO GENÉRICO ============
   if (text && !text.startsWith('/')) {
     if (!session) {
       await tg.sendMessage(chatId, `🔒 Usa /start para iniciar sesión.`);
@@ -330,8 +322,7 @@ async function handleLogout(msg, session) {
   ).catch(() => {});
 
   await tg.sendMessage(chatId,
-    `👋 *Sesión cerrada*\n\n` +
-    `Usa /start para volver a iniciar sesión.`
+    `👋 *Sesión cerrada*\n\nUsa /start para volver a iniciar sesión.`
   );
 }
 
@@ -449,7 +440,6 @@ async function handlePasswordInput(msg, conv) {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
 
-  // Borrar mensaje con la contraseña
   await tg.deleteMessage(chatId, msg.message_id);
 
   const password = msg.text || '';
@@ -496,7 +486,6 @@ async function handlePasswordInput(msg, conv) {
     return;
   }
 
-  // ✅ Autenticación exitosa
   conversations.delete(userId);
   sessions.set(userId, {
     xvnnUserId: user.id,
@@ -566,7 +555,6 @@ async function handleTxtFile(msg, doc, session) {
   const tempMsg = await tg.sendMessage(chatId, `📥 *Descargando archivo...*`);
 
   try {
-    // ============ 1. DESCARGAR EL .TXT ============
     const fileInfo = await tg.getFile(doc.file_id);
     if (!fileInfo.file_path) throw new Error('No se pudo obtener el archivo');
 
@@ -576,7 +564,6 @@ async function handleTxtFile(msg, doc, session) {
 
     const content = await res.text();
 
-    // ============ 2. EXTRAER ENLACES ============
     const urlRegex = /https?:\/\/[^\s<>"'\)\]]+/gi;
     const rawUrls = content.match(urlRegex) || [];
     const uniqueUrls = [...new Set(rawUrls)];
@@ -586,10 +573,7 @@ async function handleTxtFile(msg, doc, session) {
         `❌ *No encontré enlaces en el archivo*\n\n` +
         `El archivo debe contener una URL por línea.\n\n` +
         `*Ejemplo:*\n` +
-        `\`\`\`\n` +
-        `https://ejemplo.com/video1.mp4\n` +
-        `https://ejemplo.com/video2.mp4\n` +
-        `\`\`\``
+        `\`\`\`\nhttps://ejemplo.com/video1.mp4\nhttps://ejemplo.com/video2.mp4\n\`\`\``
       );
       return;
     }
@@ -604,7 +588,6 @@ async function handleTxtFile(msg, doc, session) {
       return;
     }
 
-    // ============ 3. GUARDAR CONVERSACIÓN ============
     conversations.set(userId, {
       state: 'awaiting_category_batch',
       username: session.username,
@@ -615,7 +598,6 @@ async function handleTxtFile(msg, doc, session) {
       chatId
     });
 
-    // ============ 4. PEDIR CATEGORÍA ============
     const keyboard = {
       inline_keyboard: [
         [
@@ -702,8 +684,7 @@ async function handleLinkMessage(msg, url, session) {
   } catch (err) {
     console.error('Error validando URL:', err);
     await tg.editMessageText(chatId, tempMsg.message_id,
-      `❌ *No se pudo usar ese enlace*\n\n` +
-      `Motivo: ${escapeMd(err.message)}`
+      `❌ *No se pudo usar ese enlace*\n\nMotivo: ${escapeMd(err.message)}`
     );
   }
 }
@@ -728,7 +709,6 @@ async function handleCallbackQuery(query) {
     return;
   }
 
-  // ============ CANCELAR ============
   if (data === 'cancel_upload') {
     conversations.delete(userId);
     await tg.answerCallbackQuery(query.id, 'Cancelado');
@@ -736,7 +716,6 @@ async function handleCallbackQuery(query) {
     return;
   }
 
-  // ============ CATEGORÍA INDIVIDUAL ============
   if (data.startsWith('cat:')) {
     const category = data.replace('cat:', '');
 
@@ -756,7 +735,6 @@ async function handleCallbackQuery(query) {
     return;
   }
 
-  // ============ BATCH ============
   if (data.startsWith('batch:')) {
     const category = data.replace('batch:', '');
 
@@ -778,7 +756,7 @@ async function handleCallbackQuery(query) {
 }
 
 // ============================================================
-//  PROCESAR VIDEO INDIVIDUAL
+//  PROCESAR VIDEO INDIVIDUAL (con progreso en vivo)
 // ============================================================
 async function processVideo(session, videoData, category, chatId, messageId) {
   const tmpDir = path.join(os.tmpdir(), `xvnn-${crypto.randomBytes(8).toString('hex')}`);
@@ -942,44 +920,88 @@ async function processVideo(session, videoData, category, chatId, messageId) {
 }
 
 // ============================================================
-//  PROCESAR BATCH (MÚLTIPLES ENLACES)
+//  PROCESAR BATCH CON PROGRESO EN VIVO
 // ============================================================
 async function processBatch(session, urls, category, chatId, messageId) {
   const total = urls.length;
   const results = { success: [], failed: [] };
   const batchStartTime = Date.now();
 
+  // ============ ESTADO COMPARTIDO ============
+  let currentIndex = 0;
+  let currentFilename = '';
+  let currentSize = '?';
+  let currentStage = 'descargando';
+  let currentPercent = 0;
+  let lastEditTime = 0;
+  const MIN_EDIT_INTERVAL = 1500; // 1.5s throttle
+
+  // ============ REFRESCAR MENSAJE (con throttle) ============
+  const updateBatchMessage = async (force = false) => {
+    const now = Date.now();
+    if (!force && now - lastEditTime < MIN_EDIT_INTERVAL) return;
+    lastEditTime = now;
+
+    const remaining = Math.max(0, total - currentIndex);
+
+    const stageText = {
+      'descargando': '📥 Descargando',
+      'subiendo': '☁️ Subiendo original',
+      'thumb': '📸 Generando miniatura',
+      'transcodificando': '🎞 Transcodificando',
+      'subiendo_hls': '☁️ Subiendo segmentos'
+    }[currentStage] || '⚙️ Procesando';
+
+    const filled = Math.round(currentPercent / 10);
+    const bar = '▰'.repeat(filled) + '▱'.repeat(10 - filled);
+
+    await tg.editMessageText(chatId, messageId,
+      `⚙️ *Procesando ${currentIndex}/${total}*\n\n` +
+      `📄 \`${escapeMd(currentFilename.slice(0, 45))}\`\n` +
+      `📊 ${currentSize} MB\n\n` +
+      `${bar} ${currentPercent}%\n` +
+      `${stageText}...\n\n` +
+      `✅ Publicados: ${results.success.length}\n` +
+      `❌ Fallidos: ${results.failed.length}\n` +
+      `⏳ En cola: ${remaining}`
+    );
+  };
+
   // ============ MENSAJE INICIAL ============
   await tg.editMessageText(chatId, messageId,
-    `⚙️ *Procesando ${total} videos en cola...*\n\n` +
-    `✅ Publicados: 0 / ${total}\n` +
-    `⏳ En cola: ${total}`
+    `⚙️ *Iniciando cola de ${total} videos...*\n\n` +
+    `Esto puede tardar unos minutos. Te aviso cuando termine cada uno.`
   );
 
   // ============ PROCESAR CADA ENLACE ============
   for (let i = 0; i < total; i++) {
     const url = urls[i];
-    const index = i + 1;
-    const remaining = total - i - 1;
-
-    let shortUrl = url.length > 40 ? '...' + url.slice(-40) : url;
+    currentIndex = i + 1;
+    currentStage = 'descargando';
+    currentPercent = 0;
+    currentFilename = url.length > 45 ? '...' + url.slice(-45) : url;
+    currentSize = '?';
 
     try {
       // ============ 1. VALIDAR ============
       const info = await validateVideoUrl(url);
 
-      // ============ 2. ACTUALIZAR PROGRESO ============
-      await tg.editMessageText(chatId, messageId,
-        `⚙️ *Procesando ${index}/${total}...*\n\n` +
-        `📥 \`${escapeMd(info.filename.slice(0, 40))}\`\n` +
-        `📊 ${(info.contentLength / 1024 / 1024).toFixed(1)} MB\n\n` +
-        `✅ Publicados: ${results.success.length}\n` +
-        `❌ Fallidos: ${results.failed.length}\n` +
-        `⏳ En cola: ${remaining}`
-      );
+      currentFilename = info.filename;
+      currentSize = (info.contentLength / 1024 / 1024).toFixed(1);
 
-      // ============ 3. PROCESAR VIDEO ============
-      const result = await processSingleVideoInBatch(session, info, category);
+      await updateBatchMessage(true);
+
+      // ============ 2. PROCESAR CON PROGRESO EN VIVO ============
+      const result = await processSingleVideoInBatch(
+        session,
+        info,
+        category,
+        async (pct, stage) => {
+          currentPercent = pct;
+          currentStage = stage;
+          await updateBatchMessage();
+        }
+      );
 
       results.success.push({
         url,
@@ -987,14 +1009,7 @@ async function processBatch(session, urls, category, chatId, messageId) {
         videoId: result.videoId
       });
 
-      // ============ 4. REPORTAR ============
-      await tg.editMessageText(chatId, messageId,
-        `⚙️ *Procesando ${index}/${total}...*\n\n` +
-        `✅ Publicados: ${results.success.length}\n` +
-        `❌ Fallidos: ${results.failed.length}\n` +
-        `⏳ En cola: ${remaining}\n\n` +
-        `✅ Último: \`${escapeMd(result.title.slice(0, 40))}\``
-      );
+      await updateBatchMessage(true);
 
     } catch (err) {
       console.error(`❌ Error procesando ${url}:`, err.message);
@@ -1004,13 +1019,17 @@ async function processBatch(session, urls, category, chatId, messageId) {
         error: err.message
       });
 
+      const shortUrl = url.length > 45 ? '...' + url.slice(-45) : url;
       await tg.editMessageText(chatId, messageId,
-        `⚙️ *Procesando ${index}/${total}...*\n\n` +
+        `⚙️ *Procesando ${currentIndex}/${total}*\n\n` +
+        `❌ Falló: \`${escapeMd(shortUrl)}\`\n` +
+        `Motivo: ${escapeMd(err.message.slice(0, 80))}\n\n` +
         `✅ Publicados: ${results.success.length}\n` +
         `❌ Fallidos: ${results.failed.length}\n` +
-        `⏳ En cola: ${remaining}\n\n` +
-        `❌ Falló: \`${escapeMd(shortUrl)}\``
+        `⏳ En cola: ${total - currentIndex}`
       );
+
+      await new Promise(r => setTimeout(r, 1500));
     }
   }
 
@@ -1058,9 +1077,9 @@ async function processBatch(session, urls, category, chatId, messageId) {
 }
 
 // ============================================================
-//  PROCESAR UN VIDEO EN EL BATCH (silencioso)
+//  PROCESAR UN VIDEO EN EL BATCH (con callback de progreso)
 // ============================================================
-async function processSingleVideoInBatch(session, videoData, category) {
+async function processSingleVideoInBatch(session, videoData, category, onProgress = () => {}) {
   const tmpDir = path.join(os.tmpdir(), `xvnn-${crypto.randomBytes(8).toString('hex')}`);
   const tmpVideoPath = path.join(tmpDir, 'video' + path.extname(videoData.filename || '.mp4'));
   const tmpThumbPath = path.join(tmpDir, 'thumb.jpg');
@@ -1070,10 +1089,26 @@ async function processSingleVideoInBatch(session, videoData, category) {
   try {
     fs.mkdirSync(tmpDir, { recursive: true });
 
-    // ============ 1. DESCARGA ============
-    const { size: downloadedSize } = await downloadToFile(videoData.url, tmpVideoPath);
+    // ============ 1. DESCARGA (0-15%) ============
+    await onProgress(0, 'descargando');
 
-    // ============ 2. SUBIR ORIGINAL ============
+    let lastDownloadPct = -1;
+    const { size: downloadedSize } = await downloadToFile(
+      videoData.url,
+      tmpVideoPath,
+      (downloaded, total) => {
+        if (!total) return;
+        const pct = Math.round((downloaded / total) * 100);
+        if (pct - lastDownloadPct >= 5) {
+          lastDownloadPct = pct;
+          onProgress(Math.round(pct * 0.15), 'descargando');
+        }
+      }
+    );
+
+    // ============ 2. SUBIR ORIGINAL (18%) ============
+    await onProgress(18, 'subiendo');
+
     videoId = crypto.randomUUID();
     const ext = path.extname(videoData.filename || '.mp4').toLowerCase() || '.mp4';
     const vKey = `videos/${videoId}/original${ext}`;
@@ -1081,7 +1116,9 @@ async function processSingleVideoInBatch(session, videoData, category) {
     const videoBuffer = fs.readFileSync(tmpVideoPath);
     await uploadFile(vKey, videoBuffer, videoData.contentType || 'video/mp4');
 
-    // ============ 3. THUMBNAIL ============
+    // ============ 3. THUMBNAIL (22%) ============
+    await onProgress(22, 'thumb');
+
     const tKey = `videos/${videoId}/thumb.jpg`;
     try {
       await extractThumbnail(tmpVideoPath, tmpThumbPath);
@@ -1116,10 +1153,17 @@ async function processSingleVideoInBatch(session, videoData, category) {
       session.username
     ]);
 
-    // ============ 5. TRANSCODIFICAR ============
-    const hlsResult = await transcodeToHLS(tmpVideoPath, videoId, () => {});
+    // ============ 5. TRANSCODIFICAR (25-92%) ============
+    const onHlsProgress = async (pct, stage) => {
+      const overall = 25 + Math.round((pct / 100) * 67);
+      await onProgress(overall, stage === 'transcoding' ? 'transcodificando' : 'subiendo_hls');
+    };
 
-    // ============ 6. UPDATE BD ============
+    const hlsResult = await transcodeToHLS(tmpVideoPath, videoId, onHlsProgress);
+
+    // ============ 6. UPDATE BD (95%) ============
+    await onProgress(95, 'subiendo_hls');
+
     await run(`
       UPDATE videos 
       SET hls_manifest = $1,
@@ -1134,6 +1178,8 @@ async function processSingleVideoInBatch(session, videoData, category) {
       hlsResult.duration || 0,
       videoId
     ]);
+
+    await onProgress(100, 'subiendo_hls');
 
     return { videoId, title, success: true };
 
@@ -1225,7 +1271,6 @@ export async function startTelegramBot() {
     { command: 'logout', description: 'Cerrar sesión' }
   ]);
 
-  // Restaurar sesiones desde BD
   try {
     const rows = await all(
       `SELECT telegram_user_id, xvnn_user_id, xvnn_username, 
@@ -1251,7 +1296,7 @@ export async function startTelegramBot() {
     console.warn('⚠️  No se pudieron restaurar sesiones:', err.message);
   }
 
-  console.log('✅ Bot de Telegram iniciado (con autenticación + batch)');
+  console.log('✅ Bot de Telegram iniciado (con autenticación + batch + progreso en vivo)');
   running = true;
 
   while (running) {
