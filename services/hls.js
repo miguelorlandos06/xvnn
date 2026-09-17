@@ -42,7 +42,75 @@ function releaseSlot() {
 }
 
 // ============================================================
-//  EJECUTAR FFMPEG CON SPAWN DIRECTO
+//  EXTRAER THUMBNAIL DEL VIDEO (JPG REAL)
+// ============================================================
+/**
+ * Extrae un frame del video en el segundo 3 y lo guarda como JPG.
+ * Si el video dura menos de 3s, intenta con el segundo 1.
+ * Si falla, intenta con el primer frame.
+ *
+ * @param {string} videoPath - Ruta del video de entrada
+ * @param {string} outputPath - Ruta donde guardar el JPG
+ * @returns {Promise<string>} - Ruta del JPG generado
+ */
+export async function extractThumbnail(videoPath, outputPath) {
+  // Intentar varias estrategias en orden
+  const strategies = [
+    { ss: '00:00:03', label: 'segundo 3' },
+    { ss: '00:00:01', label: 'segundo 1' },
+    { ss: '00:00:00', label: 'primer frame' }
+  ];
+
+  for (const strategy of strategies) {
+    try {
+      await runThumbnailExtraction(videoPath, outputPath, strategy.ss);
+      const size = fs.statSync(outputPath).size;
+      console.log(`✅ Thumbnail extraído (${strategy.label}): ${(size / 1024).toFixed(1)} KB`);
+      return outputPath;
+    } catch (err) {
+      console.warn(`⚠️  Falló en ${strategy.label}, intentando siguiente...`);
+      // Limpiar archivo parcial si existe
+      if (fs.existsSync(outputPath)) {
+        try { fs.unlinkSync(outputPath); } catch {}
+      }
+    }
+  }
+
+  throw new Error('No se pudo extraer ningún frame del video');
+}
+
+function runThumbnailExtraction(videoPath, outputPath, ss) {
+  return new Promise((resolve, reject) => {
+    const args = [
+      '-y',
+      '-ss', ss,
+      '-i', videoPath,
+      '-vframes', '1',
+      '-vf', 'scale=640:-2',
+      '-q:v', '3',
+      '-f', 'image2',
+      outputPath
+    ];
+
+    const proc = spawn(FFMPEG_PATH, args);
+    let stderr = '';
+
+    proc.stderr.on('data', (data) => { stderr += data.toString(); });
+
+    proc.on('close', (code) => {
+      if (code === 0 && fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0) {
+        resolve(outputPath);
+      } else {
+        reject(new Error(`FFmpeg thumbnail exit ${code}: ${stderr.slice(-200)}`));
+      }
+    });
+
+    proc.on('error', reject);
+  });
+}
+
+// ============================================================
+//  EJECUTAR FFMPEG CON SPAWN DIRECTO (transcodificación HLS)
 // ============================================================
 function runFFmpeg(inputPath, hlsDir, totalDuration, onProgress) {
   return new Promise((resolve, reject) => {
@@ -72,7 +140,6 @@ function runFFmpeg(inputPath, hlsDir, totalDuration, onProgress) {
     // ============ CONSTRUIR FILTER_COMPLEX ============
     const n = QUALITY_PROFILES.length;
 
-    // Ejemplo: [0:v]split=4[v1][v2][v3][v4]; [v1]scale=-2:240[v1out]; [v2]scale=-2:360[v2out]; ...
     const splitLabels = QUALITY_PROFILES.map((_, i) => `[v${i + 1}]`).join('');
     const scaleChains = QUALITY_PROFILES.map((q, i) => {
       const height = q.resolution.split('x')[1];
@@ -85,6 +152,8 @@ function runFFmpeg(inputPath, hlsDir, totalDuration, onProgress) {
     const args = [
       '-y',
       '-i', inputPath,
+      '-preset', HLS_CONFIG.preset || 'veryfast',
+      '-threads', String(HLS_CONFIG.threads || 0),
       '-filter_complex', filterComplex,
     ];
 
@@ -113,7 +182,6 @@ function runFFmpeg(inputPath, hlsDir, totalDuration, onProgress) {
     });
 
     // Configuración global
-    args.push('-preset', 'veryfast');
     args.push('-pix_fmt', 'yuv420p');
     args.push('-g', String(gop));
     args.push('-keyint_min', String(gop));
@@ -148,7 +216,6 @@ function runFFmpeg(inputPath, hlsDir, totalDuration, onProgress) {
       const chunk = data.toString();
       stderr += chunk;
 
-      // Parsear tiempo de progreso
       const match = chunk.match(/time=(\d+):(\d+):(\d+)\.\d+/);
       if (match && totalDuration > 0) {
         const secs = parseInt(match[1]) * 3600 +
@@ -178,7 +245,6 @@ function runFFmpeg(inputPath, hlsDir, totalDuration, onProgress) {
         console.error('   ─── FIN STDERR ───');
         console.error('');
 
-        // Detectar causa
         const lower = stderr.toLowerCase();
         if (/no such filter|invalid argument/i.test(lower)) {
           console.error('🎯 CAUSA: ERROR EN FILTER_COMPLEX');
@@ -224,14 +290,12 @@ export async function transcodeToHLS(input, videoId, onProgress = () => {}) {
   fs.mkdirSync(hlsDir, { recursive: true });
 
   try {
-    // Preparar archivo de entrada
     if (Buffer.isBuffer(input)) {
       fs.writeFileSync(inputPath, input);
     } else {
       fs.copyFileSync(input, inputPath);
     }
 
-    // Obtener duración con ffprobe
     let totalDuration = 0;
     try {
       const durationOut = execSync(
@@ -246,13 +310,11 @@ export async function transcodeToHLS(input, videoId, onProgress = () => {}) {
     console.log(`📹 Duración: ${totalDuration.toFixed(2)}s`);
     console.log('');
 
-    // Transcodificar
     onProgress(0, 'transcoding');
     await runFFmpeg(inputPath, hlsDir, totalDuration, (pct) =>
       onProgress(pct, 'transcoding')
     );
 
-    // ============ SUBIR A S3 ============
     onProgress(0, 'uploading');
     const baseKey = `videos/${videoId}/hls`;
     const filesToUpload = collectFiles(hlsDir);
