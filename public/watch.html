@@ -61,6 +61,7 @@
     color: var(--text);
     cursor: pointer;
     border-radius: 50%;
+    transition: background 0.15s ease;
   }
 
   .back-btn:hover { background: var(--bg-3); }
@@ -192,6 +193,7 @@
     gap: 12px;
     padding: 12px 0;
     border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
   }
 
   .channel-info {
@@ -262,13 +264,6 @@
   .action-btn.download {
     background: var(--bg-3);
     color: var(--text);
-  }
-
-  /* Separador vertical entre like y dislike */
-  .actions .divider {
-    width: 1px;
-    background: var(--border);
-    margin: 6px 0;
   }
 
   /* ============ DESCRIPCIÓN ============ */
@@ -397,7 +392,7 @@
 <body>
 
 <header class="top-header">
-  <button class="back-btn" id="backBtn">
+  <button class="back-btn" id="backBtn" aria-label="Volver">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <line x1="19" y1="12" x2="5" y2="12"></line>
       <polyline points="12 19 5 12 12 5"></polyline>
@@ -676,14 +671,32 @@
     showToast('Descarga iniciada');
   });
 
-  // ============ NAVEGACIÓN ============
+  // ============ NAVEGACIÓN (BOTÓN VOLVER) ============
   els.backBtn.addEventListener('click', () => {
     if (hlsInstance) hlsInstance.destroy();
-    if (document.referrer && document.referrer.includes('web.html')) {
-      window.history.back();
-    } else {
-      window.location.href = 'web.html';
+
+    // Si hay historial navegable del mismo sitio → volver
+    if (window.history.length > 1 && document.referrer) {
+      try {
+        const refUrl = new URL(document.referrer);
+        const currentUrl = new URL(window.location.href);
+
+        // Si viene del mismo dominio → usar history.back()
+        if (refUrl.origin === currentUrl.origin) {
+          window.history.back();
+          return;
+        }
+      } catch (e) {
+        // URL inválida, ignorar y usar fallback
+      }
     }
+
+    // Fallback: no hay historial interno o viene de fuera
+    // Guardar la categoría actual para no perderla al volver
+    if (currentVideo?.category) {
+      localStorage.setItem('xvnn_category', currentVideo.category);
+    }
+    window.location.href = 'web.html';
   });
 
   window.addEventListener('beforeunload', () => {
