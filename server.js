@@ -50,6 +50,62 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', time: Date.now() });
 });
 
+// ============ DEBUG FFMPEG (temporal) ============
+app.get('/api/debug/ffmpeg', async (req, res) => {
+  const info = {
+    timestamp: new Date().toISOString(),
+    env: {
+      PATH: process.env.PATH,
+      PWD: process.cwd(),
+      NODE_ENV: process.env.NODE_ENV
+    }
+  };
+
+  try {
+    const { execSync } = await import('child_process');
+    info.which_ffmpeg = execSync('which ffmpeg 2>&1 || echo "NOT_FOUND"', { encoding: 'utf-8' }).trim();
+  } catch (e) {
+    info.which_ffmpeg = 'ERROR: ' + e.message;
+  }
+
+  try {
+    const { execSync } = await import('child_process');
+    info.ffmpeg_version = execSync('ffmpeg -version 2>&1 | head -1 || echo "FAILED"', { encoding: 'utf-8' }).trim();
+  } catch (e) {
+    info.ffmpeg_version = 'ERROR: ' + e.message;
+  }
+
+  try {
+    const { execSync } = await import('child_process');
+    info.which_ffprobe = execSync('which ffprobe 2>&1 || echo "NOT_FOUND"', { encoding: 'utf-8' }).trim();
+  } catch (e) {
+    info.which_ffprobe = 'ERROR: ' + e.message;
+  }
+
+  try {
+    const fs = await import('fs');
+    info.paths_exist = {
+      '/usr/bin/ffmpeg': fs.default.existsSync('/usr/bin/ffmpeg'),
+      '/usr/local/bin/ffmpeg': fs.default.existsSync('/usr/local/bin/ffmpeg'),
+      '/bin/ffmpeg': fs.default.existsSync('/bin/ffmpeg'),
+      '/usr/bin/ffprobe': fs.default.existsSync('/usr/bin/ffprobe'),
+      '/usr/local/bin/ffprobe': fs.default.existsSync('/usr/local/bin/ffprobe')
+    };
+  } catch (e) {
+    info.paths_exist = 'ERROR: ' + e.message;
+  }
+
+  try {
+    const fs = await import('fs');
+    info.docker_env = {
+      '/.dockerenv': fs.default.existsSync('/.dockerenv'),
+      '/etc/alpine-release': fs.default.existsSync('/etc/alpine-release')
+    };
+  } catch (e) {}
+
+  res.json(info);
+});
+
 app.get('/api/health/full', async (req, res) => {
   try {
     await pool.query('SELECT 1');
