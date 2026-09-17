@@ -3,187 +3,345 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>XVNN - Mi Perfil</title>
+<title>XVNN · Perfil</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
   :root {
-    --black: #0a0a0a; --black-2: #141414; --black-3: #1c1c1c;
-    --red: #e50914; --red-hover: #ff1a26; --gray: #8a8a8a; --white: #fff;
-    --green: #2ecc71; --header-h: 62px;
+    --bg: #0f0f0f;
+    --bg-2: #181818;
+    --bg-3: #212121;
+    --bg-hover: #272727;
+    --border: #272727;
+    --red: #e50914;
+    --text: #f1f1f1;
+    --text-2: #aaaaaa;
+    --text-3: #717171;
+    --green: #2ecc71;
+    --header-h: 56px;
   }
-  html, body { min-height: 100%; font-family: 'Poppins', sans-serif; background: var(--black); color: var(--white); overflow-x: hidden; }
+
+  html, body {
+    min-height: 100%;
+    font-family: 'Roboto', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
   body { padding-bottom: 90px; }
 
+  /* ============ HEADER ============ */
   .top-header {
-    position: fixed; top: 0; left: 0; right: 0; height: var(--header-h);
-    background: rgba(10,10,10,0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 16px; z-index: 100;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: var(--header-h);
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    z-index: 100;
   }
-  .page-title { font-size: 20px; font-weight: 700; letter-spacing: 2px; display: flex; align-items: center; gap: 8px; }
-  .page-title .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); box-shadow: 0 0 12px var(--red); }
+
+  .brand {
+    font-size: 20px;
+    font-weight: 500;
+    letter-spacing: -0.5px;
+  }
+
+  .brand span { color: var(--red); }
 
   .logout-btn {
-    display: flex; align-items: center; gap: 6px; padding: 8px 12px;
-    background: var(--black-2); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;
-    color: var(--white); font-family: 'Poppins', sans-serif; font-size: 12px; font-weight: 600;
-    cursor: pointer; transition: all 0.25s ease;
+    padding: 8px 14px;
+    background: transparent;
+    border: none;
+    color: var(--text-2);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
   }
-  .logout-btn:hover { border-color: var(--red); color: var(--red); }
-  .logout-btn svg { width: 14px; height: 14px; }
 
-  .container { max-width: 720px; margin: 0 auto; padding: calc(var(--header-h) + 20px) 16px 20px; }
+  .logout-btn:hover { color: var(--text); }
 
-  .profile-card {
-    background: linear-gradient(135deg, var(--black-2) 0%, #1a0505 100%);
-    border: 1px solid rgba(255,255,255,0.06); border-radius: 16px;
-    padding: 24px; margin-bottom: 20px; text-align: center;
-    position: relative; overflow: hidden;
+  /* ============ PROFILE ============ */
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: calc(var(--header-h) + 24px) 16px 20px;
   }
-  .profile-card::before {
-    content: ''; position: absolute; top: -50%; right: -50%; width: 200%; height: 200%;
-    background: radial-gradient(circle, rgba(229,9,20,0.08) 0%, transparent 60%);
-    pointer-events: none;
+
+  .profile-header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 28px;
   }
+
   .avatar {
-    width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 14px;
-    background: var(--red); display: flex; align-items: center; justify-content: center;
-    font-size: 32px; font-weight: 800; color: var(--white);
-    box-shadow: 0 10px 30px rgba(229,9,20,0.4); position: relative; z-index: 1;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: var(--red);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    font-weight: 500;
+    color: #fff;
+    flex-shrink: 0;
   }
-  .profile-name { font-size: 20px; font-weight: 700; margin-bottom: 4px; position: relative; z-index: 1; }
-  .profile-username { font-size: 13px; color: var(--gray); margin-bottom: 14px; position: relative; z-index: 1; }
 
-  .stats-grid {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
-    margin-top: 16px; position: relative; z-index: 1;
+  .profile-info h1 {
+    font-size: 22px;
+    font-weight: 500;
+    margin-bottom: 4px;
   }
-  .stat-card {
-    padding: 12px 8px; background: rgba(0,0,0,0.4);
-    border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;
+
+  .profile-info p {
+    font-size: 14px;
+    color: var(--text-3);
+  }
+
+  /* ============ STATS ============ */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 32px;
+  }
+
+  .stat {
+    padding: 16px;
+    background: var(--bg-2);
+    border-radius: 8px;
     text-align: center;
   }
-  .stat-value { font-size: 18px; font-weight: 700; color: var(--red); margin-bottom: 2px; }
-  .stat-label { font-size: 10px; color: var(--gray); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
 
+  .stat-value {
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* ============ SECCIÓN ============ */
   .section-title {
-    font-size: 14px; font-weight: 700; margin: 24px 0 12px;
-    display: flex; align-items: center; gap: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-2);
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
-  .section-title::before { content: ''; width: 3px; height: 16px; background: var(--red); border-radius: 2px; }
 
-  .videos-list { display: flex; flex-direction: column; gap: 10px; }
+  .video-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
   .video-item {
-    display: flex; gap: 12px; padding: 10px;
-    background: var(--black-2); border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 12px; cursor: pointer; transition: all 0.2s ease;
+    display: flex;
+    gap: 12px;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 8px;
+    transition: background 0.15s ease;
   }
-  .video-item:active { transform: scale(0.98); }
-  .video-item:hover { border-color: rgba(229,9,20,0.3); }
+
+  .video-item:hover { background: var(--bg-2); }
+
   .video-thumb {
-    width: 100px; height: 66px; border-radius: 8px; object-fit: cover;
-    background: var(--black-3); flex-shrink: 0;
+    width: 140px;
+    aspect-ratio: 16 / 9;
+    background: var(--bg-3);
+    border-radius: 8px;
+    overflow: hidden;
+    flex-shrink: 0;
   }
-  .video-details { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+
+  .video-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .video-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
   .video-item-title {
-    font-size: 13px; font-weight: 600; line-height: 1.35; margin-bottom: 4px;
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.35;
+    margin-bottom: 6px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
-  .video-item-meta { font-size: 11px; color: var(--gray); display: flex; align-items: center; gap: 6px; }
+
+  .video-item-meta {
+    font-size: 12px;
+    color: var(--text-3);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
   .status-pill {
-    padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.5px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
   }
-  .status-pill.ready { background: rgba(46,204,113,0.15); color: var(--green); }
-  .status-pill.processing { background: rgba(229,9,20,0.15); color: var(--red); }
-  .status-pill.failed { background: rgba(138,138,138,0.2); color: var(--gray); }
 
-  .empty-state { text-align: center; padding: 40px 20px; color: var(--gray); }
-  .empty-state svg { width: 48px; height: 48px; color: #333; margin-bottom: 12px; }
-  .empty-state h3 { font-size: 15px; font-weight: 600; color: #666; margin-bottom: 6px; }
-  .empty-state p { font-size: 12px; line-height: 1.5; }
+  .status-pill.ready {
+    background: rgba(46, 204, 113, 0.15);
+    color: var(--green);
+  }
 
+  .status-pill.processing {
+    background: rgba(229, 9, 20, 0.15);
+    color: var(--red);
+  }
+
+  .status-pill.failed {
+    background: rgba(138, 138, 138, 0.15);
+    color: var(--text-3);
+  }
+
+  /* ============ EMPTY ============ */
+  .empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-3);
+  }
+
+  .empty svg {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 16px;
+    opacity: 0.4;
+  }
+
+  .empty h3 {
+    font-size: 15px;
+    font-weight: 400;
+    margin-bottom: 6px;
+    color: var(--text-2);
+  }
+
+  .empty p {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  /* ============ BOTTOM NAV ============ */
   .bottom-nav {
-    position: fixed; bottom: 0; left: 0; right: 0; height: 66px;
-    background: rgba(10,10,10,0.96); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-    border-top: 1px solid rgba(255,255,255,0.06);
-    display: flex; align-items: center; justify-content: space-around;
-    padding: 0 8px 6px; z-index: 100;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 64px;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    z-index: 100;
   }
+
   .nav-item {
-    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 3px; padding: 6px; background: transparent; border: none;
-    color: var(--gray); font-family: 'Poppins', sans-serif; font-size: 10px; font-weight: 500;
-    cursor: pointer; text-decoration: none; transition: color 0.2s ease;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    color: var(--text-3);
+    font-size: 10px;
+    font-weight: 500;
+    text-decoration: none;
+    padding: 6px;
   }
+
   .nav-item svg { width: 22px; height: 22px; }
-  .nav-item.active { color: var(--red); }
-  .nav-item.active svg { filter: drop-shadow(0 0 8px rgba(229,9,20,0.5)); }
+
+  .nav-item.active { color: var(--text); }
+  .nav-item.active svg { color: var(--red); }
 </style>
 </head>
 <body>
 
 <header class="top-header">
-  <div class="page-title">
-    <span class="dot"></span>
-    Mi Perfil
-  </div>
-  <button class="logout-btn" id="logoutBtn">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-      <polyline points="16 17 21 12 16 7"></polyline>
-      <line x1="21" y1="12" x2="9" y2="12"></line>
-    </svg>
-    Salir
-  </button>
+  <div class="brand">XV<span>NN</span></div>
+  <button class="logout-btn" id="logoutBtn">Salir</button>
 </header>
 
 <div class="container">
-  <div class="profile-card">
+  <div class="profile-header">
     <div class="avatar" id="avatar">?</div>
-    <div class="profile-name" id="profileName">Cargando...</div>
-    <div class="profile-username" id="profileUsername">@usuario</div>
-
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-value" id="statVideos">0</div>
-        <div class="stat-label">Videos</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value" id="statViews">0</div>
-        <div class="stat-label">Vistas</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value" id="statLikes">0</div>
-        <div class="stat-label">Likes</div>
-      </div>
+    <div class="profile-info">
+      <h1 id="profileName">Cargando...</h1>
+      <p id="profileUsername">@usuario</p>
     </div>
   </div>
 
-  <h3 class="section-title">Mis videos</h3>
-  <div class="videos-list" id="videosList"></div>
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-value" id="statVideos">0</div>
+      <div class="stat-label">Videos</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" id="statViews">0</div>
+      <div class="stat-label">Vistas</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" id="statLikes">0</div>
+      <div class="stat-label">Likes</div>
+    </div>
+  </div>
+
+  <h2 class="section-title">Mis videos</h2>
+  <div class="video-list" id="videoList"></div>
 </div>
 
 <nav class="bottom-nav">
   <a href="web.html" class="nav-item">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
       <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
       <polyline points="9 22 9 12 15 12 15 22"></polyline>
     </svg>
     <span>Inicio</span>
   </a>
   <a href="https://t.me/xvnn_bot" target="_blank" rel="noopener" class="nav-item">
-    <svg viewBox="0 0 24 24" fill="currentColor">
-      <path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19"></line>
+      <line x1="5" y1="12" x2="19" y2="12"></line>
     </svg>
     <span>Publicar</span>
   </a>
   <a href="profile.html" class="nav-item active">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
       <circle cx="12" cy="7" r="4"></circle>
     </svg>
@@ -204,7 +362,7 @@
     statVideos: document.getElementById('statVideos'),
     statViews: document.getElementById('statViews'),
     statLikes: document.getElementById('statLikes'),
-    videosList: document.getElementById('videosList'),
+    videoList: document.getElementById('videoList'),
     logoutBtn: document.getElementById('logoutBtn')
   };
 
@@ -232,7 +390,7 @@
       const meData = await meRes.json();
       const videosData = await videosRes.json();
 
-      if (!meRes.ok) throw new Error(meData.message || 'Error cargando perfil');
+      if (!meRes.ok) throw new Error(meData.message || 'Error');
 
       const user = meData.user;
       const username = user.username || '';
@@ -242,7 +400,6 @@
       els.profileName.textContent = user.name || username;
       els.profileUsername.textContent = '@' + username;
 
-      // Filtrar videos del usuario (por autor username)
       const myVideos = (videosData.videos || []).filter(v => v.author?.username === username);
 
       const totalViews = myVideos.reduce((sum, v) => sum + (v.viewsRaw || 0), 0);
@@ -253,40 +410,39 @@
       els.statLikes.textContent = formatNumber(totalLikes);
 
       renderVideos(myVideos);
-
     } catch (err) {
-      console.error(err);
       els.profileName.textContent = 'Error';
-      els.profileUsername.textContent = err.message;
     }
   }
 
   function renderVideos(videos) {
     if (!videos.length) {
-      els.videosList.innerHTML = `
-        <div class="empty-state">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="2" y="2" width="20" height="20" rx="2.18"></rect>
-            <line x1="7" y1="2" x2="7" y2="22"></line>
-            <line x1="17" y1="2" x2="17" y2="22"></line>
+      els.videoList.innerHTML = `
+        <div class="empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+            <polygon points="10 8 16 12 10 16 10 8" fill="currentColor"></polygon>
           </svg>
-          <h3>No has subido videos aún</h3>
+          <h3>No has subido videos</h3>
           <p>Abre el bot de Telegram y envía un enlace<br>para publicar tu primer video</p>
         </div>
       `;
       return;
     }
 
-    els.videosList.innerHTML = videos.map(v => {
+    els.videoList.innerHTML = videos.map(v => {
       const status = v.status || 'ready';
+      const statusText = status === 'ready' ? 'Listo' : status === 'processing' ? 'Procesando' : 'Error';
       return `
         <div class="video-item" data-id="${v.id}">
-          <img class="video-thumb" src="${v.thumb}" alt="${escapeHtml(v.title)}" loading="lazy">
-          <div class="video-details">
+          <div class="video-thumb">
+            <img src="${v.thumb}" alt="">
+          </div>
+          <div class="video-info">
             <div class="video-item-title">${escapeHtml(v.title)}</div>
             <div class="video-item-meta">
-              <span class="status-pill ${status}">${status === 'ready' ? 'Listo' : status === 'processing' ? 'Procesando' : 'Error'}</span>
-              <span>${v.views} · ${v.likes} ❤</span>
+              <span class="status-pill ${status}">${statusText}</span>
+              <span>${v.views} vistas · ${v.likes} likes</span>
             </div>
           </div>
         </div>
@@ -295,9 +451,8 @@
 
     document.querySelectorAll('.video-item').forEach(item => {
       item.addEventListener('click', () => {
-        const id = item.dataset.id;
-        localStorage.setItem('xvnn_current_video', id);
-        window.location.href = `watch.html?id=${id}`;
+        localStorage.setItem('xvnn_current_video', item.dataset.id);
+        window.location.href = `watch.html?id=${item.dataset.id}`;
       });
     });
   }
@@ -305,8 +460,6 @@
   els.logoutBtn.addEventListener('click', () => {
     localStorage.removeItem('xvnn_token');
     localStorage.removeItem('xvnn_user');
-    localStorage.removeItem('xvnn_current_video');
-    localStorage.removeItem('xvnn_current_category');
     window.location.href = 'auth.html';
   });
 
