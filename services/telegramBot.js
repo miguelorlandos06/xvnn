@@ -7,7 +7,7 @@ import bcrypt from 'bcryptjs';
 import { Transform, Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import { CONFIG } from '../config.js';
-import { run, get } from '../database.js';
+import { run, get, all } from '../database.js';
 import { uploadFile, publicUrl } from './s3.js';
 import { transcodeToHLS, extractThumbnail } from './hls.js';
 
@@ -15,26 +15,31 @@ import { transcodeToHLS, extractThumbnail } from './hls.js';
 const TOKEN = CONFIG.telegram.botToken;
 const API_ROOT = 'https://api.telegram.org';
 const API_URL = `${API_ROOT}/bot${TOKEN}`;
+const FILE_API = `${API_ROOT}/file/bot${TOKEN}`;
 
-// ============ ESTADOS DE CONVERSACIÓN ============
-// Map<telegramUserId, { state, username, videoData, timestamp, failedAttempts }>
+// ============ ESTADOS ============
+// Map<telegramUserId, { state, username, videoData, urls, tempMessageId, timestamp, failedAttempts, chatId }>
 const conversations = new Map();
 
-// Map<telegramUserId, { xvnnUserId, username }>  ← sesiones autenticadas
+// Map<telegramUserId, { xvnnUserId, username, name, authenticatedAt }>
 const sessions = new Map();
 
 let offset = 0;
 let running = false;
 
-// Limpieza periódica de conversaciones huérfanas
+// ============ LÍMITES ============
+const MAX_URLS_PER_FILE = 50;
+const MAX_FAILED_ATTEMPTS = 3;
+const CONVERSATION_TTL = 30 * 60 * 1000;   // 30 minutos
+
+// ============ LIMPIEZA PERIÓDICA ============
 setInterval(() => {
   const now = Date.now();
   for (const [k, v] of conversations.entries()) {
-    if (now - v.timestamp > 30 * 60 * 1000) conversations.delete(k);
+    if (now - v.timestamp > CONVERSATION_TTL) conversations.delete(k);
   }
 }, 5 * 60 * 1000);
 
-// Limpieza periódica de temporales
 setInterval(() => {
   const tmp = os.tmpdir();
   const now = Date.now();
@@ -84,7 +89,9 @@ const tg = {
   setMyCommands: (commands) => apiCall('setMyCommands', { commands }).catch(() => null),
 
   sendChatAction: (chatId, action = 'typing') =>
-    apiCall('sendChatAction', { chat_id: chatId, action }).catch(() => null)
+    apiCall('sendChatAction', { chat_id: chatId, action }).catch(() => null),
+
+  getFile: (fileId) => apiCall('getFile', { file_id: fileId })
 };
 
 // ============================================================
@@ -180,7 +187,7 @@ async function validateVideoUrl(url) {
 }
 
 // ============================================================
-//  DESCARGA A ARCHIVO TEMPORAL
+//  DESCARGA
 // ============================================================
 async function downloadToFile(url, destPath, onProgress = () => {}) {
   const res = await fetch(url, {
@@ -210,7 +217,7 @@ async function downloadToFile(url, destPath, onProgress = () => {}) {
 }
 
 // ============================================================
-//  AUTENTICACIÓN DE USUARIO
+//  AUTENTICACIÓN
 // ============================================================
 async function authenticateUser(username, password) {
   const user = await get(
@@ -223,11 +230,7 @@ async function authenticateUser(username, password) {
   const valid = await bcrypt.compare(password, user.password);
   if (!valid) return null;
 
-  return {
-    id: user.id,
-    name: user.name,
-    username: user.username
-  };
+  return { id: user.id, name: user.name, username: user.username };
 }
 
 // ============================================================
@@ -240,250 +243,411 @@ async function handleMessage(msg) {
   const conv = conversations.get(userId);
   const session = sessions.get(userId);
 
-  // ============ /start ============
-  if (text.startsWith('/start')) {
-    // Si ya está autenticado → bienvenida simple
-    if (session) {
-      await tg.sendMessage(chatId,
-        `👋 *¡Hola de nuevo, ${escapeMd(session.username)}!*\n\n` +
-        `Ya estás autenticado. Envíame un *enlace directo* a un video para publicarlo.\n\n` +
-        `Usa /logout para cerrar sesión.`
-      );
-      return;
-    }
+  // ============ COMANDOS ============
+  if (text.startsWith('/start')) return handleStart(msg, session);
+  if (text.startsWith('/logout')) return handleLogout(msg, session);
+  if (text.startsWith('/help')) return handleHelp(msg, session);
+  if (text.startsWith('/stats')) return handleStats(msg, session);
+  if (text.startsWith('/cancel')) return handleCancel(msg);
 
-    // Iniciar flujo de login
-    conversations.set(userId, {
-      state: 'awaiting_username',
-      timestamp: Date.now(),
-      chatId
-    });
-
-    await tg.sendMessage(chatId,
-      `🎬 *Bienvenido a XVNN*\n\n` +
-      `Para publicar videos necesitas iniciar sesión con tu cuenta de XVNN.\n\n` +
-      `📝 *Ingresa tu usuario:*`
-    );
-    return;
-  }
-
-  // ============ /logout ============
-  if (text.startsWith('/logout')) {
-    sessions.delete(userId);
-    conversations.delete(userId);
-
-    await run(
-      'DELETE FROM telegram_sessions WHERE telegram_user_id = $1',
-      [userId]
-    ).catch(() => {});
-
-    await tg.sendMessage(chatId,
-      `👋 *Sesión cerrada*\n\n` +
-      `Usa /start para volver a iniciar sesión.`
-    );
-    return;
-  }
-
-  // ============ /help ============
-  if (text.startsWith('/help')) {
-    if (!session) {
-      return tg.sendMessage(chatId,
-        `🆘 *Ayuda XVNN*\n\n` +
-        `Primero debes autenticarte. Usa /start para comenzar.`
-      );
-    }
-
-    await tg.sendMessage(chatId,
-      `🆘 *Ayuda XVNN*\n\n` +
-      `• /start — Menú principal\n` +
-      `• /help — Esta ayuda\n` +
-      `• /stats — Tus estadísticas\n` +
-      `• /cancel — Cancelar enlace pendiente\n` +
-      `• /logout — Cerrar sesión\n\n` +
-      `📤 *Envíame un enlace directo* al video para publicarlo.\n\n` +
-      `*Ejemplo:*\n` +
-      `\`https://midominio.com/video.mp4\``
-    );
-    return;
-  }
-
-  // ============ /stats ============
-  if (text.startsWith('/stats')) {
-    if (!session) {
-      return tg.sendMessage(chatId, `🔒 Primero inicia sesión con /start`);
-    }
-
-    try {
-      const s = await get(`
-        SELECT 
-          COUNT(*)::int AS total,
-          COALESCE(SUM(views), 0)::int AS views,
-          COALESCE(SUM(likes), 0)::int AS likes
-        FROM videos WHERE user_id = $1
-      `, [session.xvnnUserId]);
-
-      await tg.sendMessage(chatId,
-        `📊 *Tus estadísticas en XVNN*\n\n` +
-        `🎬 Videos subidos: *${s.total}*\n` +
-        `👁 Vistas totales: *${s.views}*\n` +
-        `❤️ Likes totales: *${s.likes}*\n\n` +
-        `🌐 Ver más en: ${CONFIG.server.baseUrl}/profile.html`
-      );
-    } catch (err) {
-      console.error('Error /stats:', err);
-      await tg.sendMessage(chatId, '❌ Error obteniendo estadísticas');
-    }
-    return;
-  }
-
-  // ============ /cancel ============
-  if (text.startsWith('/cancel')) {
-    conversations.delete(userId);
-    await tg.sendMessage(chatId, '❌ Operación cancelada.');
-    return;
-  }
+  // ============ ARCHIVO .TXT ============
+  if (msg.document) return handleDocument(msg, session);
 
   // ============ FLUJO DE AUTENTICACIÓN ============
-  if (conv?.state === 'awaiting_username') {
-    const username = text;
+  if (conv?.state === 'awaiting_username') return handleUsernameInput(msg, conv);
+  if (conv?.state === 'awaiting_password') return handlePasswordInput(msg, conv);
 
-    if (!username || username.length < 3 || !/^[a-zA-Z0-9_]+$/.test(username)) {
-      await tg.sendMessage(chatId,
-        `❌ *Usuario inválido*\n\n` +
-        `Debe tener al menos 3 caracteres y solo letras, números y _.\n\n` +
-        `Intenta de nuevo:`
-      );
-      return;
-    }
-
-    conversations.set(userId, {
-      ...conv,
-      state: 'awaiting_password',
-      username,
-      timestamp: Date.now()
-    });
-
-    await tg.sendMessage(chatId,
-      `🔑 *Ahora ingresa tu contraseña:*\n\n` +
-      `_Por seguridad, borraré este mensaje automáticamente._`
-    );
-    return;
-  }
-
-  if (conv?.state === 'awaiting_password') {
-    // Borrar el mensaje con la contraseña inmediatamente
-    await tg.deleteMessage(chatId, msg.message_id);
-
-    const password = text;
-    const username = conv.username;
-
-    if (!password || password.length < 6) {
-      conversations.set(userId, {
-        ...conv,
-        state: 'awaiting_password',
-        timestamp: Date.now()
-      });
-      await tg.sendMessage(chatId,
-        `❌ *Contraseña inválida* (mín. 6 caracteres).\n\n` +
-        `Intenta de nuevo:`
-      );
-      return;
-    }
-
-    // Validar credenciales
-    const user = await authenticateUser(username, password);
-
-    if (!user) {
-      const attempts = (conv.failedAttempts || 0) + 1;
-
-      if (attempts >= 3) {
-        conversations.delete(userId);
-        await tg.sendMessage(chatId,
-          `🚫 *Demasiados intentos fallidos*\n\n` +
-          `Espera 15 minutos antes de intentar de nuevo.`
-        );
-        return;
-      }
-
-      conversations.set(userId, {
-        ...conv,
-        state: 'awaiting_username',
-        username: null,
-        failedAttempts: attempts,
-        timestamp: Date.now()
-      });
-
-      await tg.sendMessage(chatId,
-        `❌ *Credenciales incorrectas* (intento ${attempts}/3)\n\n` +
-        `Ingresa tu usuario de nuevo:`
-      );
-      return;
-    }
-
-    // ✅ Autenticación exitosa
-    conversations.delete(userId);
-    sessions.set(userId, {
-      xvnnUserId: user.id,
-      username: user.username,
-      name: user.name,
-      authenticatedAt: Date.now()
-    });
-
-    // Guardar sesión en BD
-    await run(`
-      INSERT INTO telegram_sessions (telegram_user_id, xvnn_user_id, xvnn_username, state)
-      VALUES ($1, $2, $3, 'authenticated')
-      ON CONFLICT (telegram_user_id) 
-      DO UPDATE SET 
-        xvnn_user_id = EXCLUDED.xvnn_user_id,
-        xvnn_username = EXCLUDED.xvnn_username,
-        last_activity = NOW()
-    `, [userId, user.id, user.username]).catch(err => {
-      console.error('Error guardando sesión:', err.message);
-    });
-
-    await tg.sendMessage(chatId,
-      `✅ *¡Autenticado correctamente!*\n\n` +
-      `👤 Usuario: *${escapeMd(user.name || user.username)}*\n` +
-      `📛 @${escapeMd(user.username)}\n\n` +
-      `📤 *Ahora envíame un enlace directo al video* que quieras publicar.\n\n` +
-      `⚡ *Formatos:* MP4, WebM, MOV, MKV\n` +
-      `📏 *Tamaño máximo:* ${CONFIG.telegram.maxLinkDownloadMB} MB\n\n` +
-      `💡 Usa /help para ver todos los comandos.`
-    );
-    return;
-  }
-
-  // ============ DETECTAR ENLACE (solo si está autenticado) ============
+  // ============ DETECTAR ENLACE ============
   const urlMatch = text.match(/https?:\/\/[^\s]+/i);
   if (urlMatch) {
     if (!session) {
       await tg.sendMessage(chatId,
-        `🔒 *Primero debes iniciar sesión*\n\n` +
-        `Usa /start para autenticarte.`
+        `🔒 *Primero debes iniciar sesión*\n\nUsa /start para autenticarte.`
       );
       return;
     }
-    await handleLinkMessage(msg, urlMatch[0], session);
-    return;
+    return handleLinkMessage(msg, urlMatch[0], session);
   }
 
-  // ============ CUALQUIER OTRO TEXTO ============
+  // ============ TEXTO GENÉRICO ============
   if (text && !text.startsWith('/')) {
     if (!session) {
       await tg.sendMessage(chatId, `🔒 Usa /start para iniciar sesión.`);
       return;
     }
-
     await tg.sendMessage(chatId,
-      `📤 Envíame un *enlace directo* a un video.\n\n` +
+      `📤 Envíame un *enlace directo* a un video, o un archivo \`.txt\` con varios enlaces.\n\n` +
       `Ejemplo: \`https://ejemplo.com/video.mp4\``
     );
   }
 }
 
 // ============================================================
-//  MANEJO DEL ENLACE
+//  COMANDO /start
+// ============================================================
+async function handleStart(msg, session) {
+  const chatId = msg.chat.id;
+  const userId = msg.from.id;
+
+  if (session) {
+    await tg.sendMessage(chatId,
+      `👋 *¡Hola de nuevo, ${escapeMd(session.name || session.username)}!*\n\n` +
+      `Ya estás autenticado. Puedes:\n\n` +
+      `📤 Enviarme un *enlace directo* a un video\n` +
+      `📋 Enviarme un archivo \`.txt\` con varios enlaces\n\n` +
+      `Usa /logout para cerrar sesión.`
+    );
+    return;
+  }
+
+  conversations.set(userId, {
+    state: 'awaiting_username',
+    timestamp: Date.now(),
+    chatId,
+    failedAttempts: 0
+  });
+
+  await tg.sendMessage(chatId,
+    `🎬 *Bienvenido a XVNN*\n\n` +
+    `Para publicar videos necesitas iniciar sesión con tu cuenta de XVNN.\n\n` +
+    `📝 *Ingresa tu usuario:*`
+  );
+}
+
+// ============================================================
+//  COMANDO /logout
+// ============================================================
+async function handleLogout(msg, session) {
+  const chatId = msg.chat.id;
+  const userId = msg.from.id;
+
+  sessions.delete(userId);
+  conversations.delete(userId);
+
+  await run(
+    'DELETE FROM telegram_sessions WHERE telegram_user_id = $1',
+    [userId]
+  ).catch(() => {});
+
+  await tg.sendMessage(chatId,
+    `👋 *Sesión cerrada*\n\n` +
+    `Usa /start para volver a iniciar sesión.`
+  );
+}
+
+// ============================================================
+//  COMANDO /help
+// ============================================================
+async function handleHelp(msg, session) {
+  const chatId = msg.chat.id;
+
+  if (!session) {
+    return tg.sendMessage(chatId,
+      `🆘 *Ayuda XVNN*\n\nPrimero debes autenticarte. Usa /start para comenzar.`
+    );
+  }
+
+  await tg.sendMessage(chatId,
+    `🆘 *Ayuda XVNN*\n\n` +
+    `• /start — Menú principal\n` +
+    `• /help — Esta ayuda\n` +
+    `• /stats — Tus estadísticas\n` +
+    `• /cancel — Cancelar operación pendiente\n` +
+    `• /logout — Cerrar sesión\n\n` +
+    `📤 *Puedes enviarme:*\n` +
+    `• Un enlace directo a un video\n` +
+    `• Un archivo \`.txt\` con varios enlaces (uno por línea)\n\n` +
+    `*Ejemplo de .txt:*\n` +
+    `\`\`\`\n` +
+    `https://ejemplo.com/video1.mp4\n` +
+    `https://ejemplo.com/video2.mp4\n` +
+    `\`\`\``
+  );
+}
+
+// ============================================================
+//  COMANDO /stats
+// ============================================================
+async function handleStats(msg, session) {
+  const chatId = msg.chat.id;
+
+  if (!session) {
+    return tg.sendMessage(chatId, `🔒 Primero inicia sesión con /start`);
+  }
+
+  try {
+    const s = await get(`
+      SELECT 
+        COUNT(*)::int AS total,
+        COALESCE(SUM(views), 0)::int AS views,
+        COALESCE(SUM(likes), 0)::int AS likes
+      FROM videos WHERE user_id = $1
+    `, [session.xvnnUserId]);
+
+    await tg.sendMessage(chatId,
+      `📊 *Tus estadísticas en XVNN*\n\n` +
+      `🎬 Videos subidos: *${s.total}*\n` +
+      `👁 Vistas totales: *${s.views}*\n` +
+      `❤️ Likes totales: *${s.likes}*\n\n` +
+      `🌐 Ver más en: ${CONFIG.server.baseUrl}/profile.html`
+    );
+  } catch (err) {
+    console.error('Error /stats:', err);
+    await tg.sendMessage(chatId, '❌ Error obteniendo estadísticas');
+  }
+}
+
+// ============================================================
+//  COMANDO /cancel
+// ============================================================
+async function handleCancel(msg) {
+  const chatId = msg.chat.id;
+  const userId = msg.from.id;
+
+  if (conversations.has(userId)) {
+    conversations.delete(userId);
+    await tg.sendMessage(chatId, '❌ Operación cancelada.');
+  } else {
+    await tg.sendMessage(chatId, 'No hay nada que cancelar.');
+  }
+}
+
+// ============================================================
+//  INPUT: USUARIO
+// ============================================================
+async function handleUsernameInput(msg, conv) {
+  const chatId = msg.chat.id;
+  const userId = msg.from.id;
+  const username = (msg.text || '').trim();
+
+  if (!username || username.length < 3 || !/^[a-zA-Z0-9_]+$/.test(username)) {
+    await tg.sendMessage(chatId,
+      `❌ *Usuario inválido*\n\n` +
+      `Debe tener al menos 3 caracteres y solo letras, números y _.\n\n` +
+      `Intenta de nuevo:`
+    );
+    return;
+  }
+
+  conversations.set(userId, {
+    ...conv,
+    state: 'awaiting_password',
+    username,
+    timestamp: Date.now()
+  });
+
+  await tg.sendMessage(chatId,
+    `🔑 *Ahora ingresa tu contraseña:*\n\n` +
+    `_Por seguridad, borraré este mensaje automáticamente._`
+  );
+}
+
+// ============================================================
+//  INPUT: CONTRASEÑA
+// ============================================================
+async function handlePasswordInput(msg, conv) {
+  const chatId = msg.chat.id;
+  const userId = msg.from.id;
+
+  // Borrar mensaje con la contraseña
+  await tg.deleteMessage(chatId, msg.message_id);
+
+  const password = msg.text || '';
+  const username = conv.username;
+
+  if (!password || password.length < 6) {
+    conversations.set(userId, {
+      ...conv,
+      state: 'awaiting_password',
+      timestamp: Date.now()
+    });
+    await tg.sendMessage(chatId,
+      `❌ *Contraseña inválida* (mín. 6 caracteres).\n\nIntenta de nuevo:`
+    );
+    return;
+  }
+
+  const user = await authenticateUser(username, password);
+
+  if (!user) {
+    const attempts = (conv.failedAttempts || 0) + 1;
+
+    if (attempts >= MAX_FAILED_ATTEMPTS) {
+      conversations.delete(userId);
+      await tg.sendMessage(chatId,
+        `🚫 *Demasiados intentos fallidos*\n\n` +
+        `Espera unos minutos antes de intentar de nuevo con /start.`
+      );
+      return;
+    }
+
+    conversations.set(userId, {
+      ...conv,
+      state: 'awaiting_username',
+      username: null,
+      failedAttempts: attempts,
+      timestamp: Date.now()
+    });
+
+    await tg.sendMessage(chatId,
+      `❌ *Credenciales incorrectas* (intento ${attempts}/${MAX_FAILED_ATTEMPTS})\n\n` +
+      `Ingresa tu usuario de nuevo:`
+    );
+    return;
+  }
+
+  // ✅ Autenticación exitosa
+  conversations.delete(userId);
+  sessions.set(userId, {
+    xvnnUserId: user.id,
+    username: user.username,
+    name: user.name,
+    telegramUserId: userId,
+    authenticatedAt: Date.now()
+  });
+
+  await run(`
+    INSERT INTO telegram_sessions (telegram_user_id, xvnn_user_id, xvnn_username, state)
+    VALUES ($1, $2, $3, 'authenticated')
+    ON CONFLICT (telegram_user_id) 
+    DO UPDATE SET 
+      xvnn_user_id = EXCLUDED.xvnn_user_id,
+      xvnn_username = EXCLUDED.xvnn_username,
+      last_activity = NOW()
+  `, [userId, user.id, user.username]).catch(err => {
+    console.error('Error guardando sesión:', err.message);
+  });
+
+  await tg.sendMessage(chatId,
+    `✅ *¡Autenticado correctamente!*\n\n` +
+    `👤 Usuario: *${escapeMd(user.name || user.username)}*\n` +
+    `📛 @${escapeMd(user.username)}\n\n` +
+    `📤 Ahora puedes enviarme:\n` +
+    `• Un *enlace directo* a un video\n` +
+    `• Un archivo \`.txt\` con varios enlaces\n\n` +
+    `Usa /help para más info.`
+  );
+}
+
+// ============================================================
+//  MANEJO DE DOCUMENTO (.TXT)
+// ============================================================
+async function handleDocument(msg, session) {
+  const chatId = msg.chat.id;
+  const doc = msg.document;
+
+  if (!session) {
+    return tg.sendMessage(chatId, `🔒 Primero inicia sesión con /start`);
+  }
+
+  const isTxt = doc.mime_type === 'text/plain' ||
+                doc.file_name?.toLowerCase().endsWith('.txt');
+
+  if (!isTxt) {
+    await tg.sendMessage(chatId,
+      `❌ Solo acepto archivos \`.txt\` con enlaces.\n\n` +
+      `O puedes enviarme un enlace directo a un video.`
+    );
+    return;
+  }
+
+  await handleTxtFile(msg, doc, session);
+}
+
+// ============================================================
+//  PROCESAR ARCHIVO .TXT
+// ============================================================
+async function handleTxtFile(msg, doc, session) {
+  const chatId = msg.chat.id;
+  const userId = msg.from.id;
+
+  await tg.sendChatAction(chatId, 'typing');
+
+  const tempMsg = await tg.sendMessage(chatId, `📥 *Descargando archivo...*`);
+
+  try {
+    // ============ 1. DESCARGAR EL .TXT ============
+    const fileInfo = await tg.getFile(doc.file_id);
+    if (!fileInfo.file_path) throw new Error('No se pudo obtener el archivo');
+
+    const fileUrl = `${FILE_API}/${fileInfo.file_path}`;
+    const res = await fetch(fileUrl);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const content = await res.text();
+
+    // ============ 2. EXTRAER ENLACES ============
+    const urlRegex = /https?:\/\/[^\s<>"'\)\]]+/gi;
+    const rawUrls = content.match(urlRegex) || [];
+    const uniqueUrls = [...new Set(rawUrls)];
+
+    if (uniqueUrls.length === 0) {
+      await tg.editMessageText(chatId, tempMsg.message_id,
+        `❌ *No encontré enlaces en el archivo*\n\n` +
+        `El archivo debe contener una URL por línea.\n\n` +
+        `*Ejemplo:*\n` +
+        `\`\`\`\n` +
+        `https://ejemplo.com/video1.mp4\n` +
+        `https://ejemplo.com/video2.mp4\n` +
+        `\`\`\``
+      );
+      return;
+    }
+
+    if (uniqueUrls.length > MAX_URLS_PER_FILE) {
+      await tg.editMessageText(chatId, tempMsg.message_id,
+        `⚠️ *Demasiados enlaces*\n\n` +
+        `El archivo tiene ${uniqueUrls.length} enlaces.\n` +
+        `Máximo permitido: ${MAX_URLS_PER_FILE}\n\n` +
+        `Divide el archivo en partes más pequeñas.`
+      );
+      return;
+    }
+
+    // ============ 3. GUARDAR CONVERSACIÓN ============
+    conversations.set(userId, {
+      state: 'awaiting_category_batch',
+      username: session.username,
+      xvnnUserId: session.xvnnUserId,
+      urls: uniqueUrls,
+      tempMessageId: tempMsg.message_id,
+      timestamp: Date.now(),
+      chatId
+    });
+
+    // ============ 4. PEDIR CATEGORÍA ============
+    const keyboard = {
+      inline_keyboard: [
+        [
+          { text: '👫 Hetero', callback_data: 'batch:Hetero' },
+          { text: '🏳️‍🌈 Gay',    callback_data: 'batch:Gay' }
+        ],
+        [
+          { text: '💜 Bi',     callback_data: 'batch:Bi' },
+          { text: '🏳️‍⚧️ Trans',  callback_data: 'batch:Trans' }
+        ],
+        [
+          { text: '❌ Cancelar', callback_data: 'cancel_upload' }
+        ]
+      ]
+    };
+
+    await tg.editMessageText(chatId, tempMsg.message_id,
+      `📋 *${uniqueUrls.length} enlaces detectados*\n\n` +
+      `¿En qué categoría los publico?`,
+      { reply_markup: keyboard }
+    );
+
+  } catch (err) {
+    console.error('Error procesando .txt:', err);
+    await tg.editMessageText(chatId, tempMsg.message_id,
+      `❌ *Error leyendo el archivo*\n\nMotivo: ${escapeMd(err.message)}`
+    );
+  }
+}
+
+// ============================================================
+//  MANEJO DE ENLACE INDIVIDUAL
 // ============================================================
 async function handleLinkMessage(msg, url, session) {
   const chatId = msg.chat.id;
@@ -539,11 +703,7 @@ async function handleLinkMessage(msg, url, session) {
     console.error('Error validando URL:', err);
     await tg.editMessageText(chatId, tempMsg.message_id,
       `❌ *No se pudo usar ese enlace*\n\n` +
-      `Motivo: ${escapeMd(err.message)}\n\n` +
-      `Verifica que:\n` +
-      `• El enlace apunte directo al archivo\n` +
-      `• Sea accesible sin autenticación\n` +
-      `• Pese menos de ${CONFIG.telegram.maxLinkDownloadMB} MB`
+      `Motivo: ${escapeMd(err.message)}`
     );
   }
 }
@@ -568,6 +728,7 @@ async function handleCallbackQuery(query) {
     return;
   }
 
+  // ============ CANCELAR ============
   if (data === 'cancel_upload') {
     conversations.delete(userId);
     await tg.answerCallbackQuery(query.id, 'Cancelado');
@@ -575,6 +736,7 @@ async function handleCallbackQuery(query) {
     return;
   }
 
+  // ============ CATEGORÍA INDIVIDUAL ============
   if (data.startsWith('cat:')) {
     const category = data.replace('cat:', '');
 
@@ -591,11 +753,32 @@ async function handleCallbackQuery(query) {
 
     processVideo(session, conv.videoData, category, chatId, messageId)
       .catch(err => console.error('❌ Error en processVideo:', err));
+    return;
+  }
+
+  // ============ BATCH ============
+  if (data.startsWith('batch:')) {
+    const category = data.replace('batch:', '');
+
+    if (!conv || conv.state !== 'awaiting_category_batch') {
+      await tg.answerCallbackQuery(query.id, '⚠️ Operación expirada');
+      await tg.editMessageText(chatId, messageId,
+        '⚠️ La operación expiró. Envía el archivo de nuevo.'
+      );
+      return;
+    }
+
+    conversations.delete(userId);
+    await tg.answerCallbackQuery(query.id, `✅ ${category}`);
+
+    processBatch(session, conv.urls, category, chatId, messageId)
+      .catch(err => console.error('❌ Error en processBatch:', err));
+    return;
   }
 }
 
 // ============================================================
-//  PROCESAMIENTO COMPLETO
+//  PROCESAR VIDEO INDIVIDUAL
 // ============================================================
 async function processVideo(session, videoData, category, chatId, messageId) {
   const tmpDir = path.join(os.tmpdir(), `xvnn-${crypto.randomBytes(8).toString('hex')}`);
@@ -621,8 +804,7 @@ async function processVideo(session, videoData, category, chatId, messageId) {
           lastReported = pct;
           const mbDown = (downloaded / 1024 / 1024).toFixed(1);
           const mbTotal = (total / 1024 / 1024).toFixed(1);
-          const progressPct = Math.round(pct * 0.3);
-          updateProgress(chatId, messageId, progressPct,
+          updateProgress(chatId, messageId, Math.round(pct * 0.3),
             `📥 Descargando... ${mbDown}/${mbTotal} MB`
           );
         }
@@ -631,7 +813,7 @@ async function processVideo(session, videoData, category, chatId, messageId) {
 
     await updateProgress(chatId, messageId, 30, '☁️ Subiendo original a la nube...');
 
-    // ============ 2. SUBIR ORIGINAL A S3 ============
+    // ============ 2. SUBIR A S3 ============
     videoId = crypto.randomUUID();
     const ext = path.extname(videoData.filename || '.mp4').toLowerCase() || '.mp4';
     const vKey = `videos/${videoId}/original${ext}`;
@@ -643,38 +825,19 @@ async function processVideo(session, videoData, category, chatId, messageId) {
 
     // ============ 3. THUMBNAIL ============
     const tKey = `videos/${videoId}/thumb.jpg`;
-
     try {
       await extractThumbnail(tmpVideoPath, tmpThumbPath);
-      const thumbBuffer = fs.readFileSync(tmpThumbPath);
-      await uploadFile(tKey, thumbBuffer, 'image/jpeg');
-      console.log(`✅ Thumbnail subido: ${tKey}`);
-    } catch (thumbErr) {
-      console.warn('⚠️  Error extrayendo thumbnail:', thumbErr.message);
-      // Placeholder JPEG mínimo válido
-      const minimalJPG = Buffer.from([
-        0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01,
-        0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0xFF, 0xDB, 0x00, 0x43,
-        0x00, 0x08, 0x06, 0x06, 0x07, 0x06, 0x05, 0x08, 0x07, 0x07, 0x07, 0x09,
-        0x09, 0x08, 0x0A, 0x0C, 0x14, 0x0D, 0x0C, 0x0B, 0x0B, 0x0C, 0x19, 0x12,
-        0x13, 0x0F, 0x14, 0x1D, 0x1A, 0x1F, 0x1E, 0x1D, 0x1A, 0x1C, 0x1C, 0x20,
-        0x24, 0x2E, 0x27, 0x20, 0x22, 0x2C, 0x23, 0x1C, 0x1C, 0x28, 0x37, 0x29,
-        0x2C, 0x30, 0x31, 0x34, 0x34, 0x34, 0x1F, 0x27, 0x39, 0x3D, 0x38, 0x32,
-        0x3C, 0x2E, 0x33, 0x34, 0x32, 0xFF, 0xC0, 0x00, 0x0B, 0x08, 0x00, 0x01,
-        0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0xFF, 0xC4, 0x00, 0x14, 0x00, 0x01,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x03, 0xFF, 0xC4, 0x00, 0x14, 0x10, 0x01, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0xFF, 0xDA, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3F, 0x00,
-        0x37, 0xFF, 0xD9
-      ]);
-      await uploadFile(tKey, minimalJPG, 'image/jpeg');
+      await uploadFile(tKey, fs.readFileSync(tmpThumbPath), 'image/jpeg');
+    } catch (err) {
+      console.warn('⚠️  Thumbnail falló:', err.message);
+      await uploadFile(tKey, getMinimalJPG(), 'image/jpeg');
     }
 
     await updateProgress(chatId, messageId, 42, '💾 Guardando metadatos...');
 
     // ============ 4. INSERT EN BD ============
-    // IMPORTANTE: user_id es el UUID del usuario REAL de XVNN
+    const title = cleanFilename(videoData.filename);
+
     await run(`
       INSERT INTO videos
         (id, user_id, title, description, category, filename, thumbnail,
@@ -683,8 +846,8 @@ async function processVideo(session, videoData, category, chatId, messageId) {
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
     `, [
       videoId,
-      session.xvnnUserId,   // ← Usuario REAL de XVNN
-      cleanFilename(videoData.filename),
+      session.xvnnUserId,
+      title,
       `Subido vía Telegram`,
       category,
       vKey,
@@ -693,7 +856,7 @@ async function processVideo(session, videoData, category, chatId, messageId) {
       downloadedSize,
       'mp4',
       'processing',
-      chatId,               // telegram_user_id (chatId es igual en privado)
+      session.telegramUserId,
       session.username,
       chatId,
       messageId
@@ -718,7 +881,7 @@ async function processVideo(session, videoData, category, chatId, messageId) {
 
     await updateProgress(chatId, messageId, 95, '💾 Guardando metadatos...');
 
-    // ============ 6. ACTUALIZAR BD ============
+    // ============ 6. UPDATE BD ============
     await run(`
       UPDATE videos 
       SET hls_manifest = $1,
@@ -773,15 +936,218 @@ async function processVideo(session, videoData, category, chatId, messageId) {
       `Motivo: ${escapeMd(err.message)}\n\n` +
       `Verifica que el enlace siga activo e intenta de nuevo.`
     );
+  } finally {
+    cleanupTmp(tmpDir);
+  }
+}
+
+// ============================================================
+//  PROCESAR BATCH (MÚLTIPLES ENLACES)
+// ============================================================
+async function processBatch(session, urls, category, chatId, messageId) {
+  const total = urls.length;
+  const results = { success: [], failed: [] };
+  const batchStartTime = Date.now();
+
+  // ============ MENSAJE INICIAL ============
+  await tg.editMessageText(chatId, messageId,
+    `⚙️ *Procesando ${total} videos en cola...*\n\n` +
+    `✅ Publicados: 0 / ${total}\n` +
+    `⏳ En cola: ${total}`
+  );
+
+  // ============ PROCESAR CADA ENLACE ============
+  for (let i = 0; i < total; i++) {
+    const url = urls[i];
+    const index = i + 1;
+    const remaining = total - i - 1;
+
+    let shortUrl = url.length > 40 ? '...' + url.slice(-40) : url;
+
+    try {
+      // ============ 1. VALIDAR ============
+      const info = await validateVideoUrl(url);
+
+      // ============ 2. ACTUALIZAR PROGRESO ============
+      await tg.editMessageText(chatId, messageId,
+        `⚙️ *Procesando ${index}/${total}...*\n\n` +
+        `📥 \`${escapeMd(info.filename.slice(0, 40))}\`\n` +
+        `📊 ${(info.contentLength / 1024 / 1024).toFixed(1)} MB\n\n` +
+        `✅ Publicados: ${results.success.length}\n` +
+        `❌ Fallidos: ${results.failed.length}\n` +
+        `⏳ En cola: ${remaining}`
+      );
+
+      // ============ 3. PROCESAR VIDEO ============
+      const result = await processSingleVideoInBatch(session, info, category);
+
+      results.success.push({
+        url,
+        title: result.title,
+        videoId: result.videoId
+      });
+
+      // ============ 4. REPORTAR ============
+      await tg.editMessageText(chatId, messageId,
+        `⚙️ *Procesando ${index}/${total}...*\n\n` +
+        `✅ Publicados: ${results.success.length}\n` +
+        `❌ Fallidos: ${results.failed.length}\n` +
+        `⏳ En cola: ${remaining}\n\n` +
+        `✅ Último: \`${escapeMd(result.title.slice(0, 40))}\``
+      );
+
+    } catch (err) {
+      console.error(`❌ Error procesando ${url}:`, err.message);
+
+      results.failed.push({
+        url,
+        error: err.message
+      });
+
+      await tg.editMessageText(chatId, messageId,
+        `⚙️ *Procesando ${index}/${total}...*\n\n` +
+        `✅ Publicados: ${results.success.length}\n` +
+        `❌ Fallidos: ${results.failed.length}\n` +
+        `⏳ En cola: ${remaining}\n\n` +
+        `❌ Falló: \`${escapeMd(shortUrl)}\``
+      );
+    }
+  }
+
+  // ============ RESUMEN FINAL ============
+  const duration = Math.round((Date.now() - batchStartTime) / 1000);
+  const minutes = Math.floor(duration / 60);
+  const seconds = duration % 60;
+
+  const profileUrl = `${CONFIG.server.baseUrl}/profile.html`;
+
+  let finalMessage =
+    `🎉 *¡Cola completada!*\n\n` +
+    `📊 *Resultados:*\n` +
+    `✅ Publicados: *${results.success.length}*\n` +
+    `❌ Fallidos: *${results.failed.length}*\n` +
+    `📁 Categoría: *${category}*\n` +
+    `⏱ Tiempo total: ${minutes}m ${seconds}s\n\n`;
+
+  if (results.failed.length > 0) {
+    finalMessage += `⚠️ *Enlaces que fallaron:*\n`;
+    const failedToShow = results.failed.slice(0, 5);
+    for (const f of failedToShow) {
+      const short = f.url.length > 45 ? '...' + f.url.slice(-45) : f.url;
+      finalMessage += `• \`${escapeMd(short)}\`\n`;
+    }
+    if (results.failed.length > 5) {
+      finalMessage += `• _...y ${results.failed.length - 5} más_\n`;
+    }
+    finalMessage += `\n`;
+  }
+
+  finalMessage += `🌐 Los videos publicados ya están disponibles en la web.`;
+
+  const buttons = [];
+  if (results.success.length > 0) {
+    buttons.push([{
+      text: `👤 Ver mi perfil (${results.success.length} videos)`,
+      url: profileUrl
+    }]);
+  }
+
+  await tg.editMessageText(chatId, messageId, finalMessage, {
+    reply_markup: { inline_keyboard: buttons }
+  });
+}
+
+// ============================================================
+//  PROCESAR UN VIDEO EN EL BATCH (silencioso)
+// ============================================================
+async function processSingleVideoInBatch(session, videoData, category) {
+  const tmpDir = path.join(os.tmpdir(), `xvnn-${crypto.randomBytes(8).toString('hex')}`);
+  const tmpVideoPath = path.join(tmpDir, 'video' + path.extname(videoData.filename || '.mp4'));
+  const tmpThumbPath = path.join(tmpDir, 'thumb.jpg');
+
+  let videoId = null;
+
+  try {
+    fs.mkdirSync(tmpDir, { recursive: true });
+
+    // ============ 1. DESCARGA ============
+    const { size: downloadedSize } = await downloadToFile(videoData.url, tmpVideoPath);
+
+    // ============ 2. SUBIR ORIGINAL ============
+    videoId = crypto.randomUUID();
+    const ext = path.extname(videoData.filename || '.mp4').toLowerCase() || '.mp4';
+    const vKey = `videos/${videoId}/original${ext}`;
+
+    const videoBuffer = fs.readFileSync(tmpVideoPath);
+    await uploadFile(vKey, videoBuffer, videoData.contentType || 'video/mp4');
+
+    // ============ 3. THUMBNAIL ============
+    const tKey = `videos/${videoId}/thumb.jpg`;
+    try {
+      await extractThumbnail(tmpVideoPath, tmpThumbPath);
+      await uploadFile(tKey, fs.readFileSync(tmpThumbPath), 'image/jpeg');
+    } catch (err) {
+      console.warn('⚠️  Thumbnail falló:', err.message);
+      await uploadFile(tKey, getMinimalJPG(), 'image/jpeg');
+    }
+
+    // ============ 4. INSERT EN BD ============
+    const title = cleanFilename(videoData.filename);
+
+    await run(`
+      INSERT INTO videos
+        (id, user_id, title, description, category, filename, thumbnail,
+         duration, size, video_type, processing_status,
+         telegram_user_id, telegram_username)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+    `, [
+      videoId,
+      session.xvnnUserId,
+      title,
+      `Subido vía Telegram (batch)`,
+      category,
+      vKey,
+      tKey,
+      0,
+      downloadedSize,
+      'mp4',
+      'processing',
+      session.telegramUserId,
+      session.username
+    ]);
+
+    // ============ 5. TRANSCODIFICAR ============
+    const hlsResult = await transcodeToHLS(tmpVideoPath, videoId, () => {});
+
+    // ============ 6. UPDATE BD ============
+    await run(`
+      UPDATE videos 
+      SET hls_manifest = $1,
+          video_type = 'hls',
+          processing_status = 'ready',
+          variants = $2,
+          duration = $3
+      WHERE id = $4
+    `, [
+      hlsResult.masterKey,
+      JSON.stringify(hlsResult.variants),
+      hlsResult.duration || 0,
+      videoId
+    ]);
+
+    return { videoId, title, success: true };
+
+  } catch (err) {
+    if (videoId) {
+      await run(
+        'UPDATE videos SET processing_status = $1 WHERE id = $2',
+        ['failed', videoId]
+      ).catch(() => {});
+    }
+    throw err;
 
   } finally {
-    try {
-      if (fs.existsSync(tmpDir)) {
-        fs.rmSync(tmpDir, { recursive: true, force: true });
-      }
-    } catch (cleanupErr) {
-      console.error('⚠️  Error limpiando temporales:', cleanupErr.message);
-    }
+    cleanupTmp(tmpDir);
   }
 }
 
@@ -799,6 +1165,16 @@ async function updateProgress(chatId, messageId, percent, text) {
   );
 }
 
+function cleanupTmp(dir) {
+  try {
+    if (fs.existsSync(dir)) {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  } catch (err) {
+    console.error('⚠️  Error limpiando temporales:', err.message);
+  }
+}
+
 function escapeMd(text) {
   return String(text).replace(/[_*[\]()~`>#+\-=|{}.!]/g, '\\$&');
 }
@@ -809,6 +1185,25 @@ function cleanFilename(filename) {
     .replace(/[_-]/g, ' ')
     .trim()
     .slice(0, 200) || 'Video XVNN';
+}
+
+function getMinimalJPG() {
+  return Buffer.from([
+    0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01,
+    0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0xFF, 0xDB, 0x00, 0x43,
+    0x00, 0x08, 0x06, 0x06, 0x07, 0x06, 0x05, 0x08, 0x07, 0x07, 0x07, 0x09,
+    0x09, 0x08, 0x0A, 0x0C, 0x14, 0x0D, 0x0C, 0x0B, 0x0B, 0x0C, 0x19, 0x12,
+    0x13, 0x0F, 0x14, 0x1D, 0x1A, 0x1F, 0x1E, 0x1D, 0x1A, 0x1C, 0x1C, 0x20,
+    0x24, 0x2E, 0x27, 0x20, 0x22, 0x2C, 0x23, 0x1C, 0x1C, 0x28, 0x37, 0x29,
+    0x2C, 0x30, 0x31, 0x34, 0x34, 0x34, 0x1F, 0x27, 0x39, 0x3D, 0x38, 0x32,
+    0x3C, 0x2E, 0x33, 0x34, 0x32, 0xFF, 0xC0, 0x00, 0x0B, 0x08, 0x00, 0x01,
+    0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0xFF, 0xC4, 0x00, 0x14, 0x00, 0x01,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x03, 0xFF, 0xC4, 0x00, 0x14, 0x10, 0x01, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0xFF, 0xDA, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3F, 0x00,
+    0x37, 0xFF, 0xD9
+  ]);
 }
 
 // ============================================================
@@ -830,30 +1225,33 @@ export async function startTelegramBot() {
     { command: 'logout', description: 'Cerrar sesión' }
   ]);
 
-  // Cargar sesiones existentes desde BD (por si el bot se reinicia)
+  // Restaurar sesiones desde BD
   try {
-    const rows = await get('SELECT 1');  // test de conexión
-    const existing = await get(
-      `SELECT telegram_user_id, xvnn_user_id, xvnn_username 
-       FROM telegram_sessions 
+    const rows = await all(
+      `SELECT telegram_user_id, xvnn_user_id, xvnn_username, 
+              (SELECT name FROM users WHERE id = ts.xvnn_user_id) AS name
+       FROM telegram_sessions ts
        WHERE last_activity > NOW() - INTERVAL '30 days'`
-    ).catch(() => null);
+    );
 
-    if (existing && Array.isArray(existing)) {
-      for (const row of existing) {
-        sessions.set(Number(row.telegram_user_id), {
-          xvnnUserId: row.xvnn_user_id,
-          username: row.xvnn_username,
-          authenticatedAt: Date.now()
-        });
-      }
+    for (const row of rows) {
+      sessions.set(Number(row.telegram_user_id), {
+        xvnnUserId: row.xvnn_user_id,
+        username: row.xvnn_username,
+        name: row.name || row.xvnn_username,
+        telegramUserId: Number(row.telegram_user_id),
+        authenticatedAt: Date.now()
+      });
+    }
+
+    if (sessions.size > 0) {
       console.log(`🔄 ${sessions.size} sesiones restauradas desde BD`);
     }
   } catch (err) {
-    // Ignorar errores de carga inicial
+    console.warn('⚠️  No se pudieron restaurar sesiones:', err.message);
   }
 
-  console.log('✅ Bot de Telegram iniciado (con autenticación)');
+  console.log('✅ Bot de Telegram iniciado (con autenticación + batch)');
   running = true;
 
   while (running) {
