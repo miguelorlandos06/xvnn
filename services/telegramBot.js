@@ -3,13 +3,12 @@ import crypto from 'crypto';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
-import { Transform } from 'stream';
-import { Readable } from 'stream';
+import { Transform, Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import { CONFIG } from '../config.js';
 import { run, get } from '../database.js';
 import { uploadFile, publicUrl } from './s3.js';
-import { transcodeToHLS } from './hls.js';
+import { transcodeToHLS, extractThumbnail } from './hls.js';
 
 // ============ CONFIG ============
 const TOKEN = CONFIG.telegram.botToken;
@@ -121,7 +120,6 @@ async function validateVideoUrl(url) {
     throw new Error('Solo se permiten enlaces http:// o https://');
   }
 
-  // Anti-SSRF
   const hostname = parsed.hostname.toLowerCase();
   if (
     hostname === 'localhost' ||
@@ -414,6 +412,7 @@ async function handleCallbackQuery(query) {
 async function processVideo(from, pending, category, chatId, messageId) {
   const tmpDir = path.join(os.tmpdir(), `xvnn-${crypto.randomBytes(8).toString('hex')}`);
   const tmpVideoPath = path.join(tmpDir, 'video' + path.extname(pending.filename || '.mp4'));
+  const tmpThumbPath = path.join(tmpDir, 'thumb.jpg');
 
   let videoId = null;
 
@@ -452,12 +451,34 @@ async function processVideo(from, pending, category, chatId, messageId) {
     const videoBuffer = fs.readFileSync(tmpVideoPath);
     await uploadFile(vKey, videoBuffer, pending.contentType || 'video/mp4');
 
-    await updateProgress(chatId, messageId, 40, '🖼 Generando miniatura...');
+    await updateProgress(chatId, messageId, 38, '📸 Extrayendo miniatura...');
 
-    // ============ 3. THUMBNAIL ============
-    const tKey = `videos/${videoId}/thumb.svg`;
-    const svg = generatePlaceholderSVG(pending.filename);
-    await uploadFile(tKey, Buffer.from(svg), 'image/svg+xml');
+    // ============ 3. THUMBNAIL REAL DEL VIDEO ============
+    const tKey = `videos/${videoId}/thumb.jpg`;
+    let thumbUploaded = false;
+
+    try {
+      await extractThumbnail(tmpVideoPath, tmpThumbPath);
+      const thumbBuffer = fs.readFileSync(tmpThumbPath);
+      await uploadFile(tKey, thumbBuffer, 'image/jpeg');
+      thumbUploaded = true;
+      console.log(`✅ Thumbnail subido: ${tKey}`);
+    } catch (thumbErr) {
+      console.warn('⚠️  Error extrayendo thumbnail:', thumbErr.message);
+      // Fallback: generar placeholder JPG negro
+      try {
+        const placeholderJPG = await generateMinimalJPG();
+        await uploadFile(tKey, placeholderJPG, 'image/jpeg');
+        thumbUploaded = true;
+        console.log('✅ Thumbnail placeholder subido');
+      } catch (fallbackErr) {
+        console.error('❌ Error generando placeholder:', fallbackErr.message);
+        // Último recurso: subir un buffer vacío para no romper el flujo
+        await uploadFile(tKey, Buffer.from([0xFF, 0xD8, 0xFF, 0xD9]), 'image/jpeg');
+      }
+    }
+
+    await updateProgress(chatId, messageId, 42, '💾 Guardando metadatos...');
 
     // ============ 4. USUARIO BOT ============
     const botUser = await getOrCreateBotUser(from);
@@ -502,7 +523,6 @@ async function processVideo(from, pending, category, chatId, messageId) {
       }
     };
 
-    // Le pasamos la RUTA del archivo temporal (más eficiente que buffer)
     const hlsResult = await transcodeToHLS(tmpVideoPath, videoId, onHlsProgress);
 
     await updateProgress(chatId, messageId, 95, '💾 Guardando metadatos...');
@@ -533,7 +553,7 @@ async function processVideo(from, pending, category, chatId, messageId) {
       `✅ *¡Video publicado exitosamente!*\n\n` +
       `📁 *Categoría:* ${category}\n` +
       `📊 *Tamaño:* ${sizeMB} MB\n` +
-      `🎞 *Calidades:* 240p, 360p, 480p, 720p\n` +
+      `🎞 *Calidades:* ${hlsResult.variants.map(v => v.name).join(', ')}\n` +
       `🎬 *Segmentos:* ${hlsResult.totalFiles}\n\n` +
       `🌐 *Ya está disponible en la web*`,
       {
@@ -571,6 +591,44 @@ async function processVideo(from, pending, category, chatId, messageId) {
     } catch (cleanupErr) {
       console.error('⚠️  Error limpiando temporales:', cleanupErr.message);
     }
+  }
+}
+
+// ============================================================
+//  GENERAR PLACEHOLDER JPG MINIMALISTA (fallback)
+// ============================================================
+async function generateMinimalJPG() {
+  const { execSync } = await import('child_process');
+  const tmpId = crypto.randomBytes(4).toString('hex');
+  const tmpPath = path.join(os.tmpdir(), `placeholder-${tmpId}.jpg`);
+
+  try {
+    execSync(
+      `/usr/bin/ffmpeg -y -f lavfi -i "color=c=0x1a0505:s=640x360:d=1" -frames:v 1 -q:v 3 "${tmpPath}"`,
+      { timeout: 10000, stdio: 'ignore' }
+    );
+    const buffer = fs.readFileSync(tmpPath);
+    fs.unlinkSync(tmpPath);
+    return buffer;
+  } catch (err) {
+    console.error('❌ Error generando placeholder JPG:', err.message);
+    // Último recurso: JPG vacío mínimo válido
+    return Buffer.from([
+      0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01,
+      0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0xFF, 0xDB, 0x00, 0x43,
+      0x00, 0x08, 0x06, 0x06, 0x07, 0x06, 0x05, 0x08, 0x07, 0x07, 0x07, 0x09,
+      0x09, 0x08, 0x0A, 0x0C, 0x14, 0x0D, 0x0C, 0x0B, 0x0B, 0x0C, 0x19, 0x12,
+      0x13, 0x0F, 0x14, 0x1D, 0x1A, 0x1F, 0x1E, 0x1D, 0x1A, 0x1C, 0x1C, 0x20,
+      0x24, 0x2E, 0x27, 0x20, 0x22, 0x2C, 0x23, 0x1C, 0x1C, 0x28, 0x37, 0x29,
+      0x2C, 0x30, 0x31, 0x34, 0x34, 0x34, 0x1F, 0x27, 0x39, 0x3D, 0x38, 0x32,
+      0x3C, 0x2E, 0x33, 0x34, 0x32, 0xFF, 0xC0, 0x00, 0x0B, 0x08, 0x00, 0x01,
+      0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0xFF, 0xC4, 0x00, 0x14, 0x00, 0x01,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x03, 0xFF, 0xC4, 0x00, 0x14, 0x10, 0x01, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0xFF, 0xDA, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3F, 0x00,
+      0x37, 0xFF, 0xD9
+    ]);
   }
 }
 
@@ -627,29 +685,12 @@ function cleanFilename(filename) {
     .slice(0, 200) || 'Video XVNN';
 }
 
-function generatePlaceholderSVG(title) {
-  const safe = (title || 'XVNN').replace(/[<>&"']/g, '').slice(0, 40);
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675">
-    <defs>
-      <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="#0a0a0a"/>
-        <stop offset="100%" stop-color="#2a0505"/>
-      </linearGradient>
-    </defs>
-    <rect width="1200" height="675" fill="url(#g)"/>
-    <circle cx="600" cy="300" r="60" fill="#e50914" opacity="0.9"/>
-    <polygon points="580,270 580,330 640,300" fill="#fff"/>
-    <text x="600" y="440" font-family="Poppins,Arial,sans-serif" font-size="34" font-weight="700" fill="#ffffff" text-anchor="middle">${safe}</text>
-    <text x="600" y="490" font-family="Poppins,Arial,sans-serif" font-size="20" font-weight="400" fill="#e50914" text-anchor="middle" letter-spacing="6">XVNN</text>
-  </svg>`;
-}
-
 // ============================================================
 //  LOOP PRINCIPAL
 // ============================================================
 export async function startTelegramBot() {
-  if (!TOKEN || TOKEN === 'TU_TOKEN_AQUI' || TOKEN.includes('xxxx')) {
-    console.warn('⚠️  Bot desactivado (token no configurado en config.js)');
+  if (!TOKEN || TOKEN.includes('TU_TOKEN') || TOKEN.includes('xxxx')) {
+    console.warn('⚠️  Bot desactivado (token no configurado)');
     return;
   }
 
