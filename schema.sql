@@ -10,11 +10,21 @@ CREATE TABLE IF NOT EXISTS users (
   name VARCHAR(100) NOT NULL,
   username VARCHAR(50) UNIQUE NOT NULL,
   password VARCHAR(255) NOT NULL,
+  default_category VARCHAR(20) DEFAULT 'Hetero'
+    CHECK (default_category IN ('Hetero','Gay','Bi','Trans')),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username_lower
   ON users (LOWER(username));
+
+CREATE INDEX IF NOT EXISTS idx_users_default_category
+  ON users(default_category);
+
+-- Migración: añadir la columna si la tabla ya existía sin ella
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS default_category VARCHAR(20) DEFAULT 'Hetero'
+  CHECK (default_category IN ('Hetero','Gay','Bi','Trans'));
 
 -- ==================== VIDEOS ====================
 CREATE TABLE IF NOT EXISTS videos (
@@ -74,6 +84,20 @@ CREATE TABLE IF NOT EXISTS views_log (
 
 CREATE INDEX IF NOT EXISTS idx_views_video ON views_log(video_id);
 
+-- ==================== SESIONES DE TELEGRAM ====================
+CREATE TABLE IF NOT EXISTS telegram_sessions (
+  telegram_user_id BIGINT PRIMARY KEY,
+  xvnn_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  xvnn_username VARCHAR(50) NOT NULL,
+  state VARCHAR(30) DEFAULT 'authenticated',
+  failed_attempts INTEGER DEFAULT 0,
+  last_activity TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_telegram_sessions_user
+  ON telegram_sessions(xvnn_user_id);
+
 -- ==================== TRIGGER: contadores ====================
 CREATE OR REPLACE FUNCTION update_video_counts()
 RETURNS TRIGGER AS $$
@@ -113,17 +137,3 @@ DROP TRIGGER IF EXISTS trg_reactions_counts ON reactions;
 CREATE TRIGGER trg_reactions_counts
 AFTER INSERT OR UPDATE OR DELETE ON reactions
 FOR EACH ROW EXECUTE FUNCTION update_video_counts();
-
--- ==================== SESIONES DE TELEGRAM ====================
-CREATE TABLE IF NOT EXISTS telegram_sessions (
-  telegram_user_id BIGINT PRIMARY KEY,
-  xvnn_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  xvnn_username VARCHAR(50) NOT NULL,
-  state VARCHAR(30) DEFAULT 'authenticated',
-  failed_attempts INTEGER DEFAULT 0,
-  last_activity TIMESTAMPTZ DEFAULT NOW(),
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_telegram_sessions_user
-  ON telegram_sessions(xvnn_user_id);
