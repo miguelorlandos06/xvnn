@@ -35,7 +35,6 @@
 
   body { padding-bottom: 90px; }
 
-  /* ============ HEADER ============ */
   .top-header {
     position: fixed;
     top: 0; left: 0; right: 0;
@@ -70,7 +69,6 @@
 
   .logout-btn:hover { color: var(--text); }
 
-  /* ============ PROFILE ============ */
   .container {
     max-width: 900px;
     margin: 0 auto;
@@ -109,7 +107,6 @@
     color: var(--text-3);
   }
 
-  /* ============ STATS ============ */
   .stats {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -136,6 +133,47 @@
     color: var(--text-3);
     text-transform: uppercase;
     letter-spacing: 0.5px;
+  }
+
+  /* ============ PREFERENCIA DE CATEGORÍA ============ */
+  .preference-section {
+    margin-bottom: 32px;
+  }
+
+  .preference-desc {
+    font-size: 13px;
+    color: var(--text-3);
+    margin-bottom: 12px;
+  }
+
+  .category-chips {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .chip {
+    padding: 8px 16px;
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    color: var(--text-2);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .chip:hover {
+    background: var(--bg-hover);
+    color: var(--text);
+  }
+
+  .chip.active {
+    background: var(--red);
+    border-color: var(--red);
+    color: #fff;
   }
 
   /* ============ SECCIÓN ============ */
@@ -231,7 +269,6 @@
     color: var(--text-3);
   }
 
-  /* ============ EMPTY ============ */
   .empty {
     text-align: center;
     padding: 60px 20px;
@@ -257,7 +294,6 @@
     line-height: 1.5;
   }
 
-  /* ============ BOTTOM NAV ============ */
   .bottom-nav {
     position: fixed;
     bottom: 0; left: 0; right: 0;
@@ -321,6 +357,18 @@
     </div>
   </div>
 
+  <!-- Categoría predefinida -->
+  <div class="preference-section">
+    <h2 class="section-title">Categoría predefinida</h2>
+    <p class="preference-desc">Es la categoría que verás al abrir XVNN</p>
+    <div class="category-chips" id="categoryChips">
+      <button class="chip" data-cat="Hetero">Hetero</button>
+      <button class="chip" data-cat="Gay">Gay</button>
+      <button class="chip" data-cat="Bi">Bi</button>
+      <button class="chip" data-cat="Trans">Trans</button>
+    </div>
+  </div>
+
   <h2 class="section-title">Mis videos</h2>
   <div class="video-list" id="videoList"></div>
 </div>
@@ -378,6 +426,7 @@
     return div.innerHTML;
   }
 
+  // ============ CARGAR PERFIL ============
   async function loadProfile() {
     try {
       const headers = { 'Authorization': `Bearer ${token}` };
@@ -411,6 +460,7 @@
 
       renderVideos(myVideos);
     } catch (err) {
+      console.error(err);
       els.profileName.textContent = 'Error';
     }
   }
@@ -457,13 +507,61 @@
     });
   }
 
+  // ============ CATEGORÍA PREDEFINIDA ============
+  async function loadPreference() {
+    try {
+      const res = await fetch(`${API_URL}/auth/preferences`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok && data.defaultCategory) {
+        document.querySelectorAll('#categoryChips .chip').forEach(chip => {
+          chip.classList.toggle('active', chip.dataset.cat === data.defaultCategory);
+        });
+      }
+    } catch (err) {
+      console.warn('Error cargando preferencia');
+    }
+  }
+
+  document.getElementById('categoryChips')?.addEventListener('click', async (e) => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+
+    const cat = chip.dataset.cat;
+
+    // Actualizar UI inmediatamente
+    document.querySelectorAll('#categoryChips .chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+
+    // Guardar en backend
+    try {
+      await fetch(`${API_URL}/auth/preferences/category`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ category: cat })
+      });
+      localStorage.setItem('xvnn_category', cat);
+    } catch (err) {
+      console.error('Error guardando preferencia:', err);
+    }
+  });
+
+  // ============ LOGOUT ============
   els.logoutBtn.addEventListener('click', () => {
     localStorage.removeItem('xvnn_token');
     localStorage.removeItem('xvnn_user');
+    localStorage.removeItem('xvnn_current_video');
+    localStorage.removeItem('xvnn_current_category');
     window.location.href = 'auth.html';
   });
 
+  // ============ INICIALIZACIÓN ============
   loadProfile();
+  loadPreference();
 </script>
 
 </body>
