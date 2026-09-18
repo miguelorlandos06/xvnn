@@ -34,7 +34,6 @@
 
   body { padding-bottom: 70px; }
 
-  /* ============ HEADER ============ */
   .top-header {
     position: fixed;
     top: 0; left: 0; right: 0;
@@ -59,7 +58,6 @@
 
   .brand span { color: var(--red); }
 
-  /* ============ SELECTOR CATEGORÍA ============ */
   .category-btn {
     display: flex;
     align-items: center;
@@ -85,7 +83,6 @@
 
   .category-btn.open svg { transform: rotate(180deg); }
 
-  /* ============ DROPDOWN ============ */
   .category-dropdown {
     position: absolute;
     top: calc(100% + 6px);
@@ -129,7 +126,6 @@
     font-weight: 500;
   }
 
-  /* ============ GRID ============ */
   .videos-grid {
     display: grid;
     grid-template-columns: 1fr;
@@ -146,7 +142,6 @@
 
   .video-card:active { opacity: 0.7; }
 
-  /* Miniatura 16:9 (estilo YouTube) */
   .thumb {
     position: relative;
     width: 100%;
@@ -177,7 +172,6 @@
     letter-spacing: 0.2px;
   }
 
-  /* Info debajo de la miniatura (estilo YouTube) */
   .video-info {
     display: flex;
     gap: 10px;
@@ -222,7 +216,6 @@
     color: var(--text-3);
   }
 
-  /* ============ EMPTY ============ */
   .empty {
     grid-column: 1 / -1;
     text-align: center;
@@ -248,7 +241,6 @@
     font-size: 13px;
   }
 
-  /* ============ BOTTOM NAV ============ */
   .bottom-nav {
     position: fixed;
     bottom: 0; left: 0; right: 0;
@@ -284,7 +276,6 @@
   .nav-item.active { color: var(--text); }
   .nav-item.active svg { color: var(--red); }
 
-  /* ============ RESPONSIVE ============ */
   @media (min-width: 640px) {
     .videos-grid {
       grid-template-columns: repeat(2, 1fr);
@@ -363,8 +354,7 @@
   const API_URL = window.location.origin + '/api';
   const CATEGORIES = ['Hetero', 'Gay', 'Bi', 'Trans'];
 
-  let currentCategory = localStorage.getItem('xvnn_category') || 'Hetero';
-  if (!CATEGORIES.includes(currentCategory)) currentCategory = 'Hetero';
+  let currentCategory = 'Hetero';
 
   const categoryBtn = document.getElementById('categoryBtn');
   const categoryDropdown = document.getElementById('categoryDropdown');
@@ -376,6 +366,24 @@
     const token = localStorage.getItem('xvnn_token');
     if (!token) window.location.href = 'auth.html';
   })();
+
+  // ============ CARGAR PREFERENCIA DEL USUARIO ============
+  async function loadUserPreferences() {
+    try {
+      const token = localStorage.getItem('xvnn_token');
+      const res = await fetch(`${API_URL}/auth/preferences`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok && data.defaultCategory) {
+        currentCategory = data.defaultCategory;
+        localStorage.setItem('xvnn_category', currentCategory);
+      }
+    } catch (err) {
+      console.warn('No se pudo cargar la preferencia, usando Hetero');
+      currentCategory = 'Hetero';
+    }
+  }
 
   function toggleDropdown(open) {
     const isOpen = open !== undefined ? open : !categoryDropdown.classList.contains('open');
@@ -395,14 +403,30 @@
   });
 
   categoryOptions.forEach(opt => {
-    opt.addEventListener('click', () => {
+    opt.addEventListener('click', async () => {
       const cat = opt.dataset.cat;
       if (cat === currentCategory) return toggleDropdown(false);
+
       currentCategory = cat;
       localStorage.setItem('xvnn_category', cat);
       updateActiveOption();
       toggleDropdown(false);
       renderVideos();
+
+      // Guardar en el backend (en background, sin bloquear)
+      try {
+        const token = localStorage.getItem('xvnn_token');
+        await fetch(`${API_URL}/auth/preferences/category`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ category: cat })
+        });
+      } catch (err) {
+        console.warn('No se pudo guardar la preferencia:', err.message);
+      }
     });
   });
 
@@ -484,8 +508,12 @@
     return div.innerHTML;
   }
 
-  updateActiveOption();
-  renderVideos();
+  // ============ INICIALIZACIÓN ============
+  (async () => {
+    await loadUserPreferences();
+    updateActiveOption();
+    renderVideos();
+  })();
 </script>
 
 </body>
