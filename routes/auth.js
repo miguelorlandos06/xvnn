@@ -2,7 +2,8 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { get } from '../database.js';
+import { get, run } from '../database.js';
+import { authRequired } from '../middleware/auth.js';
 import { CONFIG } from '../config.js';
 
 const router = express.Router();
@@ -29,8 +30,9 @@ router.post('/register', async (req, res) => {
 
     const hash = await bcrypt.hash(password, 10);
     const user = await get(
-      `INSERT INTO users (name, username, password) VALUES ($1, $2, $3)
-       RETURNING id, name, username`,
+      `INSERT INTO users (name, username, password, default_category)
+       VALUES ($1, $2, $3, 'Hetero')
+       RETURNING id, name, username, default_category`,
       [name.trim(), username.trim(), hash]
     );
 
@@ -40,7 +42,15 @@ router.post('/register', async (req, res) => {
       { expiresIn: CONFIG.jwt.expiresIn }
     );
 
-    res.status(201).json({ token, user });
+    res.status(201).json({
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        username: user.username,
+        defaultCategory: user.default_category
+      }
+    });
   } catch (err) {
     console.error('Error en registro:', err);
     if (err.code === '23505') {
@@ -75,7 +85,12 @@ router.post('/login', async (req, res) => {
 
     res.json({
       token,
-      user: { id: user.id, name: user.name, username: user.username }
+      user: {
+        id: user.id,
+        name: user.name,
+        username: user.username,
+        defaultCategory: user.default_category || 'Hetero'
+      }
     });
   } catch (err) {
     console.error('Error en login:', err);
@@ -84,21 +99,70 @@ router.post('/login', async (req, res) => {
 });
 
 // ============ PERFIL ACTUAL ============
-router.get('/me', async (req, res) => {
-  const header = req.headers.authorization || '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
-  if (!token) return res.status(401).json({ message: 'No autenticado' });
-
+router.get('/me', authRequired, async (req, res) => {
   try {
-    const payload = jwt.verify(token, CONFIG.jwt.secret);
     const user = await get(
-      'SELECT id, name, username, created_at FROM users WHERE id = $1',
-      [payload.id]
+      'SELECT id, name, username, default_category, created_at FROM users WHERE id = $1',
+      [req.user.id]
     );
     if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
-    res.json({ user });
-  } catch {
-    res.status(401).json({ message: 'Token inválido' });
+
+    res.json({
+      user: {
+        id: user.id,
+        name: user.name,
+        username: user.username,
+        defaultCategory: user.default_category || 'Hetero',
+        createdAt: user.created_at
+      }
+    });
+  } catch (err) {
+    console.error('Error /me:', err);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+// ============ OBTENER PREFERENCIAS ============
+router.get('/preferences', authRequired, async (req, res) => {
+  try {
+    const user = await get(
+      'SELECT default_category FROM users WHERE id = $1',
+      [req.user.id]
+    );
+
+    if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+
+    res.json({
+      defaultCategory: user.default_category || 'Hetero'
+    });
+  } catch (err) {
+    console.error('Error obteniendo preferencias:', err);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+// ============ ACTUALIZAR CATEGORÍA PREDEFINIDA ============
+router.put('/preferences/category', authRequired, async (req, res) => {
+  try {
+    const { category } = req.body;
+    const valid = ['Hetero', 'Gay', 'Bi', 'Trans'];
+
+    if (!category || !valid.includes(category)) {
+      return res.status(400).json({ message: 'Categoría inválida' });
+    }
+
+    await run(
+      'UPDATE users SET default_category = $1 WHERE id = $2',
+      [category, req.user.id]
+    );
+
+    res.json({
+      message: 'Categoría actualizada',
+      defaultCategory: category
+    });
+  } catch (err) {
+    console.error('Error actualizando categoría:', err);
+    res.status(500).json({ message: 'Error del servidor' });
   }
 });
 
