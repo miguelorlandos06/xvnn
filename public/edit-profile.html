@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>XVNN · Editar perfil</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --bg: #0f0f0f;
+    --bg-2: #181818;
+    --bg-3: #212121;
+    --bg-hover: #272727;
+    --border: #272727;
+    --red: #e50914;
+    --text: #f1f1f1;
+    --text-2: #aaaaaa;
+    --text-3: #717171;
+    --green: #2ecc71;
+    --header-h: 56px;
+  }
+
+  html, body {
+    min-height: 100%;
+    font-family: 'Roboto', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ============ HEADER ============ */
+  .top-header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: var(--header-h);
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 8px;
+    z-index: 90;
+  }
+
+  .back-btn {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    cursor: pointer;
+    border-radius: 50%;
+    transition: background 0.15s ease;
+  }
+
+  .back-btn:hover { background: var(--bg-3); }
+
+  .back-btn svg { width: 20px; height: 20px; }
+
+  .header-title {
+    flex: 1;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 500;
+    letter-spacing: -0.3px;
+  }
+
+  .save-btn {
+    padding: 8px 16px;
+    background: transparent;
+    border: none;
+    color: var(--red);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 20px;
+    transition: all 0.15s ease;
+    opacity: 0.4;
+    pointer-events: none;
+  }
+
+  .save-btn.enabled {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .save-btn.enabled:hover {
+    background: rgba(229, 9, 20, 0.1);
+  }
+
+  /* ============ CONTENEDOR ============ */
+  .container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: calc(var(--header-h) + 24px) 16px 40px;
+  }
+
+  /* ============ AVATAR ============ */
+  .avatar-section {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .avatar-wrapper {
+    position: relative;
+    display: inline-block;
+    margin-bottom: 14px;
+  }
+
+  .avatar {
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    background: var(--red);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 42px;
+    font-weight: 500;
+    color: #fff;
+    overflow: hidden;
+    position: relative;
+    text-transform: uppercase;
+    border: 3px solid var(--bg-2);
+  }
+
+  .avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .avatar-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 500;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    cursor: pointer;
+    border-radius: 50%;
+  }
+
+  .avatar-wrapper:hover .avatar-overlay {
+    opacity: 1;
+  }
+
+  .avatar-overlay svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  /* Botón flotante de cámara */
+  .camera-btn {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--red);
+    border: 3px solid var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+  }
+
+  .camera-btn:hover { transform: scale(1.1); }
+  .camera-btn svg { width: 16px; height: 16px; }
+
+  .avatar-hint {
+    font-size: 12px;
+    color: var(--text-3);
+    max-width: 260px;
+    margin: 0 auto;
+    line-height: 1.5;
+  }
+
+  input[type="file"] { display: none; }
+
+  /* ============ FORMULARIO ============ */
+  .form-group {
+    margin-bottom: 24px;
+  }
+
+  .form-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+
+  .form-label .char-count {
+    font-size: 11px;
+    color: var(--text-3);
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 400;
+  }
+
+  .form-label .char-count.warning {
+    color: var(--red);
+  }
+
+  .form-input {
+    width: 100%;
+    padding: 14px 16px;
+    background: var(--bg-2);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.2s ease, background 0.2s ease;
+  }
+
+  .form-input:focus {
+    border-color: var(--red);
+    background: var(--bg-3);
+  }
+
+  .form-input::placeholder {
+    color: var(--text-3);
+  }
+
+  .form-input.error {
+    border-color: var(--red);
+  }
+
+  .input-prefix-wrapper {
+    position: relative;
+  }
+
+  .input-prefix {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-3);
+    font-size: 15px;
+    pointer-events: none;
+    font-weight: 400;
+  }
+
+  .input-prefix-wrapper .form-input {
+    padding-left: 30px;
+  }
+
+  .input-hint {
+    font-size: 11px;
+    color: var(--text-3);
+    margin-top: 6px;
+    line-height: 1.4;
+  }
+
+  .input-hint.error {
+    color: var(--red);
+  }
+
+  /* ============ SECCIÓN PELIGRO ============ */
+  .danger-section {
+    margin-top: 40px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+  }
+
+  .danger-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+  }
+
+  .danger-btn {
+    width: 100%;
+    padding: 14px;
+    background: rgba(229, 9, 20, 0.08);
+    border: 1px solid rgba(229, 9, 20, 0.3);
+    border-radius: 10px;
+    color: var(--red);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .danger-btn:hover {
+    background: rgba(229, 9, 20, 0.15);
+  }
+
+  .danger-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* ============ TOAST ============ */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    padding: 12px 20px;
+    background: var(--bg-3);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+    z-index: 200;
+    max-width: calc(100% - 32px);
+    border-left: 3px solid var(--text-3);
+  }
+
+  .toast.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+
+  .toast.success { border-left-color: var(--green); }
+  .toast.error { border-left-color: var(--red); }
+
+  /* ============ LOADING ============ */
+  .loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 300;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+  }
+
+  .loading-overlay.visible {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .loading-box {
+    background: var(--bg-2);
+    padding: 24px 32px;
+    border-radius: 12px;
+    text-align: center;
+    border: 1px solid var(--border);
+  }
+
+  .spinner {
+    width: 28px;
+    height: 28px;
+    border: 3px solid rgba(255,255,255,0.1);
+    border-top-color: var(--red);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin: 0 auto 12px;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .loading-box p {
+    font-size: 13px;
+    color: var(--text-2);
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ HEADER ============ -->
+<header class="top-header">
+  <button class="back-btn" id="backBtn" aria-label="Volver">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="19" y1="12" x2="5" y2="12"></line>
+      <polyline points="12 19 5 12 12 5"></polyline>
+    </svg>
+  </button>
+  <div class="header-title">Editar perfil</div>
+  <button class="save-btn" id="saveBtn" disabled>Guardar</button>
+</header>
+
+<!-- ============ CONTENEDOR ============ -->
+<div class="container">
+
+  <!-- Avatar -->
+  <div class="avatar-section">
+    <div class="avatar-wrapper" id="avatarWrapper">
+      <div class="avatar" id="avatarPreview">?</div>
+      <div class="avatar-overlay" id="avatarOverlay">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+          <circle cx="12" cy="13" r="4"></circle>
+        </svg>
+        <span>Cambiar</span>
+      </div>
+      <div class="camera-btn" id="cameraBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+          <circle cx="12" cy="13" r="4"></circle>
+        </svg>
+      </div>
+    </div>
+    <p class="avatar-hint">Toca la foto para cambiarla · JPG, PNG o WebP · Máx 5 MB</p>
+    <input type="file" id="avatarInput" accept="image/jpeg,image/png,image/webp">
+  </div>
+
+  <!-- Nombre -->
+  <div class="form-group">
+    <label class="form-label">
+      <span>Nombre</span>
+      <span class="char-count" id="nameCount">0/100</span>
+    </label>
+    <input 
+      type="text" 
+      class="form-input" 
+      id="nameInput" 
+      placeholder="Tu nombre completo"
+      maxlength="100"
+      autocomplete="name"
+    >
+    <div class="input-hint" id="nameHint">Este nombre aparecerá en tu perfil público</div>
+  </div>
+
+  <!-- Username -->
+  <div class="form-group">
+    <label class="form-label">
+      <span>Nombre de usuario</span>
+      <span class="char-count" id="usernameCount">0/50</span>
+    </label>
+    <div class="input-prefix-wrapper">
+      <span class="input-prefix">@</span>
+      <input 
+        type="text" 
+        class="form-input" 
+        id="usernameInput" 
+        placeholder="tu_usuario"
+        maxlength="50"
+        autocomplete="username"
+      >
+    </div>
+    <div class="input-hint" id="usernameHint">Solo letras, números y guión bajo (_). Mínimo 3 caracteres</div>
+  </div>
+
+  <!-- Sección peligro -->
+  <div class="danger-section">
+    <div class="danger-title">Cuenta</div>
+    <button class="danger-btn" id="logoutBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+        <polyline points="16 17 21 12 16 7"></polyline>
+        <line x1="21" y1="12" x2="9" y2="12"></line>
+      </svg>
+      Cerrar sesión
+    </button>
+  </div>
+
+</div>
+
+<!-- ============ LOADING OVERLAY ============ -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-box">
+    <div class="spinner"></div>
+    <p id="loadingText">Guardando cambios...</p>
+  </div>
+</div>
+
+<!-- ============ TOAST ============ -->
+<div class="toast" id="toast"></div>
+
+<script>
+  const API_URL = window.location.origin + '/api';
+  const token = localStorage.getItem('xvnn_token');
+
+  if (!token) window.location.href = 'auth.html';
+
+  // ============================================================
+  //  ESTADO
+  // ============================================================
+  let originalData = { name: '', username: '', avatarUrl: null };
+  let currentAvatarFile = null;
+  let avatarRemoved = false;
+
+  const els = {
+    backBtn: document.getElementById('backBtn'),
+    saveBtn: document.getElementById('saveBtn'),
+    avatarWrapper: document.getElementById('avatarWrapper'),
+    avatarPreview: document.getElementById('avatarPreview'),
+    avatarOverlay: document.getElementById('avatarOverlay'),
+    cameraBtn: document.getElementById('cameraBtn'),
+    avatarInput: document.getElementById('avatarInput'),
+    nameInput: document.getElementById('nameInput'),
+    usernameInput: document.getElementById('usernameInput'),
+    nameCount: document.getElementById('nameCount'),
+    usernameCount: document.getElementById('usernameCount'),
+    nameHint: document.getElementById('nameHint'),
+    usernameHint: document.getElementById('usernameHint'),
+    logoutBtn: document.getElementById('logoutBtn'),
+    loadingOverlay: document.getElementById('loadingOverlay'),
+    loadingText: document.getElementById('loadingText'),
+    toast: document.getElementById('toast')
+  };
+
+  // ============================================================
+  //  UTILIDADES
+  // ============================================================
+  let toastTimer;
+  function showToast(msg, type = 'info') {
+    els.toast.textContent = msg;
+    els.toast.className = `toast show ${type}`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => els.toast.classList.remove('show'), 2500);
+  }
+
+  function showLoading(text = 'Guardando...') {
+    els.loadingText.textContent = text;
+    els.loadingOverlay.classList.add('visible');
+  }
+
+  function hideLoading() {
+    els.loadingOverlay.classList.remove('visible');
+  }
+
+  function setSaveEnabled(enabled) {
+    els.saveBtn.classList.toggle('enabled', enabled);
+    els.saveBtn.disabled = !enabled;
+  }
+
+  // ============================================================
+  //  CARGAR PERFIL ACTUAL
+  // ============================================================
+  async function loadProfile() {
+    try {
+      const res = await fetch(`${API_URL}/auth/me`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.user) {
+        throw new Error(data.message || 'Error al cargar');
+      }
+
+      const user = data.user;
+      originalData.name = user.name || '';
+      originalData.username = user.username || '';
+      originalData.avatarUrl = user.avatarUrl || null;
+
+      // Rellenar formulario
+      els.nameInput.value = originalData.name;
+      els.usernameInput.value = originalData.username;
+
+      // Actualizar avatar
+      if (originalData.avatarUrl) {
+        els.avatarPreview.innerHTML = `<img src="${originalData.avatarUrl}" alt="">`;
+      } else {
+        const initial = (originalData.name || originalData.username || '?').charAt(0).toUpperCase();
+        els.avatarPreview.textContent = initial;
+      }
+
+      // Actualizar contadores
+      updateCounts();
+      checkChanges();
+    } catch (err) {
+      console.error(err);
+      showToast('Error cargando perfil: ' + err.message, 'error');
+    }
+  }
+
+  // ============================================================
+  //  DETECTAR CAMBIOS
+  // ============================================================
+  function checkChanges() {
+    const nameChanged = els.nameInput.value.trim() !== originalData.name;
+    const usernameChanged = els.usernameInput.value.trim() !== originalData.username;
+    const avatarChanged = currentAvatarFile !== null || avatarRemoved;
+
+    const hasChanges = nameChanged || usernameChanged || avatarChanged;
+    const isValid = validateForm();
+
+    setSaveEnabled(hasChanges && isValid);
+  }
+
+  function validateForm() {
+    const name = els.nameInput.value.trim();
+    const username = els.usernameInput.value.trim();
+
+    // Nombre: 2-100 caracteres
+    if (name.length < 2 || name.length > 100) {
+      els.nameHint.classList.add('error');
+      els.nameHint.textContent = 'El nombre debe tener entre 2 y 100 caracteres';
+      return false;
+    } else {
+      els.nameHint.classList.remove('error');
+      els.nameHint.textContent = 'Este nombre aparecerá en tu perfil público';
+    }
+
+    // Username: 3-50, solo alfanuméricos y _
+    if (username.length < 3) {
+      els.usernameHint.classList.add('error');
+      els.usernameHint.textContent = 'Mínimo 3 caracteres';
+      return false;
+    }
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      els.usernameHint.classList.add('error');
+      els.usernameHint.textContent = 'Solo letras, números y guión bajo (_)';
+      return false;
+    }
+    if (username.length > 50) {
+      els.usernameHint.classList.add('error');
+      els.usernameHint.textContent = 'Máximo 50 caracteres';
+      return false;
+    }
+    els.usernameHint.classList.remove('error');
+    els.usernameHint.textContent = 'Solo letras, números y guión bajo (_). Mínimo 3 caracteres';
+    return true;
+  }
+
+  function updateCounts() {
+    const nameLen = els.nameInput.value.length;
+    els.nameCount.textContent = `${nameLen}/100`;
+    els.nameCount.classList.toggle('warning', nameLen > 90);
+
+    const usernameLen = els.usernameInput.value.length;
+    els.usernameCount.textContent = `${usernameLen}/50`;
+    els.usernameCount.classList.toggle('warning', usernameLen > 45);
+  }
+
+  // ============================================================
+  //  EVENTOS DE INPUTS
+  // ============================================================
+  els.nameInput.addEventListener('input', () => {
+    updateCounts();
+    checkChanges();
+  });
+
+  els.usernameInput.addEventListener('input', () => {
+    // Sanitizar: eliminar caracteres inválidos
+    const clean = els.usernameInput.value.replace(/[^a-zA-Z0-9_]/g, '');
+    if (clean !== els.usernameInput.value) {
+      els.usernameInput.value = clean;
+    }
+    updateCounts();
+    checkChanges();
+  });
+
+  // ============================================================
+  //  SELECCIÓN DE AVATAR
+  // ============================================================
+  els.avatarWrapper.addEventListener('click', () => els.avatarInput.click());
+  els.cameraBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    els.avatarInput.click();
+  });
+
+  els.avatarInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validar tipo
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      showToast('Formato no válido. Usa JPG, PNG o WebP', 'error');
+      els.avatarInput.value = '';
+      return;
+    }
+
+    // Validar tamaño (5 MB)
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('La imagen es demasiado grande (máx 5 MB)', 'error');
+      els.avatarInput.value = '';
+      return;
+    }
+
+    currentAvatarFile = file;
+    avatarRemoved = false;
+
+    // Preview
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      els.avatarPreview.innerHTML = `<img src="${ev.target.result}" alt="">`;
+    };
+    reader.readAsDataURL(file);
+
+    checkChanges();
+  });
+
+  // ============================================================
+  //  GUARDAR CAMBIOS
+  // ============================================================
+  els.saveBtn.addEventListener('click', async () => {
+    if (!validateForm()) {
+      showToast('Revisa los datos', 'error');
+      return;
+    }
+
+    const name = els.nameInput.value.trim();
+    const username = els.usernameInput.value.trim();
+
+    const nameChanged = name !== originalData.name;
+    const usernameChanged = username !== originalData.username;
+
+    showLoading('Guardando cambios...');
+
+    try {
+      // 1. Actualizar nombre/username si cambió
+      if (nameChanged || usernameChanged) {
+        const body = {};
+        if (nameChanged) body.name = name;
+        if (usernameChanged) body.username = username;
+
+        const res = await fetch(`${API_URL}/auth/profile`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(body)
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Error al actualizar');
+
+        // Actualizar token (por si cambió el username)
+        if (data.token) {
+          localStorage.setItem('xvnn_token', data.token);
+        }
+        if (data.user) {
+          localStorage.setItem('xvnn_user', JSON.stringify(data.user));
+          originalData.name = data.user.name;
+          originalData.username = data.user.username;
+        }
+      }
+
+      // 2. Subir avatar si hay uno nuevo
+      if (currentAvatarFile) {
+        showLoading('Subiendo foto...');
+        
+        const formData = new FormData();
+        formData.append('avatar', currentAvatarFile);
+
+        const res = await fetch(`${API_URL}/auth/avatar`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formData
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Error al subir foto');
+
+        originalData.avatarUrl = data.avatarUrl;
+        currentAvatarFile = null;
+      }
+
+      hideLoading();
+      showToast('Perfil actualizado correctamente', 'success');
+      checkChanges();
+
+      // Redirigir al perfil después de 1.5s
+      setTimeout(() => {
+        window.location.href = 'profile.html';
+      }, 1500);
+
+    } catch (err) {
+      hideLoading();
+      showToast(err.message, 'error');
+    }
+  });
+
+  // ============================================================
+  //  CERRAR SESIÓN
+  // ============================================================
+  els.logoutBtn.addEventListener('click', () => {
+    if (!confirm('¿Cerrar sesión?')) return;
+    localStorage.removeItem('xvnn_token');
+    localStorage.removeItem('xvnn_user');
+    localStorage.removeItem('xvnn_current_video');
+    localStorage.removeItem('xvnn_current_category');
+    window.location.href = 'auth.html';
+  });
+
+  // ============================================================
+  //  BOTÓN VOLVER
+  // ============================================================
+  els.backBtn.addEventListener('click', () => {
+    // Si hay cambios sin guardar, avisar
+    const nameChanged = els.nameInput.value.trim() !== originalData.name;
+    const usernameChanged = els.usernameInput.value.trim() !== originalData.username;
+    const avatarChanged = currentAvatarFile !== null;
+
+    if ((nameChanged || usernameChanged || avatarChanged) && !confirm('¿Descartar los cambios?')) {
+      return;
+    }
+
+    if (window.history.length > 1 && document.referrer) {
+      try {
+        const refUrl = new URL(document.referrer);
+        const currentUrl = new URL(window.location.href);
+        if (refUrl.origin === currentUrl.origin) {
+          window.history.back();
+          return;
+        }
+      } catch (e) {}
+    }
+    window.location.href = 'profile.html';
+  });
+
+  // ============================================================
+  //  INICIALIZACIÓN
+  // ============================================================
+  loadProfile();
+</script>
+
+</body>
+</html>
