@@ -6,6 +6,11 @@ import { publicUrl, downloadFile } from '../services/s3.js';
 
 const router = express.Router();
 
+// ============================================================
+//  ORDEN DE RUTAS (CRÍTICO):
+//  Las rutas específicas (/mine, /recommended) SIEMPRE antes de /:id
+// ============================================================
+
 // ============ LISTAR VIDEOS ============
 router.get('/', async (req, res) => {
   try {
@@ -38,6 +43,75 @@ router.get('/', async (req, res) => {
     res.json({ videos: videos.map(serializeVideo) });
   } catch (err) {
     console.error('Error listando videos:', err);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+// ============ MIS VIDEOS ============
+// ⚠️ ANTES de /:id
+router.get('/mine', authRequired, async (req, res) => {
+  try {
+    const videos = await all(`
+      SELECT 
+        v.*, 
+        u.name AS author_name, 
+        u.username AS author_username,
+        (SELECT COUNT(*)::int FROM comments WHERE video_id = v.id) AS comments_count
+      FROM videos v 
+      JOIN users u ON u.id = v.user_id
+      WHERE v.user_id = $1
+      ORDER BY v.created_at DESC
+    `, [req.user.id]);
+
+    res.json({ videos: videos.map(serializeVideo) });
+  } catch (err) {
+    console.error('Error obteniendo mis videos:', err);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+// ============ RECOMENDADOS (POR ESTADÍSTICAS) ============
+// ⚠️ ANTES de /:id
+router.get('/recommended', async (req, res) => {
+  try {
+    const { exclude, limit = 6, category } = req.query;
+    const lim = Math.min(Number(limit) || 6, 20);
+
+    let sql = `
+      SELECT 
+        v.*, 
+        u.name AS author_name, 
+        u.username AS author_username,
+        (SELECT COUNT(*)::int FROM comments WHERE video_id = v.id) AS comments_count,
+        (
+          COALESCE(v.views, 0) * 1.0 +
+          COALESCE(v.likes, 0) * 5.0 +
+          (SELECT COUNT(*) FROM comments WHERE video_id = v.id) * 3.0
+        ) AS score
+      FROM videos v 
+      JOIN users u ON u.id = v.user_id
+      WHERE v.processing_status = 'ready'
+    `;
+
+    const params = [];
+
+    if (exclude) {
+      params.push(exclude);
+      sql += ` AND v.id != $${params.length}`;
+    }
+
+    if (category && ['Hetero', 'Gay', 'Bi', 'Trans'].includes(category)) {
+      params.push(category);
+      sql += ` AND v.category = $${params.length}`;
+    }
+
+    params.push(lim);
+    sql += ` ORDER BY score DESC, v.created_at DESC LIMIT $${params.length}`;
+
+    const videos = await all(sql, params);
+    res.json({ videos: videos.map(serializeVideo) });
+  } catch (err) {
+    console.error('Error obteniendo recomendados:', err);
     res.status(500).json({ message: 'Error del servidor' });
   }
 });
@@ -176,7 +250,134 @@ router.get('/:id/download', async (req, res) => {
   }
 });
 
-// ============ ELIMINAR VIDEO ============
+// ============================================================
+//  COMENTARIOS
+// ============================================================
+
+// ============ OBTENER COMENTARIOS ============
+router.get('/:id/comments', async (req, res) => {
+  try {
+    const { limit = 50, offset = 0 } = req.query;
+    const lim = Math.min(Number(limit) || 50, 100);
+    const off = Number(offset) || 0;
+
+    // Verificar que el video existe
+    const video = await get('SELECT id FROM videos WHERE id = $1', [req.params.id]);
+    if (!video) return res.status(404).json({ message: 'Video no encontrado' });
+
+    const comments = await all(`
+      SELECT 
+        c.id, c.content, c.created_at, c.updated_at,
+        u.id AS user_id, u.name AS user_name, u.username AS user_username, u.avatar_url AS user_avatar
+      FROM comments c
+      JOIN users u ON u.id = c.user_id
+      WHERE c.video_id = $1
+      ORDER BY c.created_at DESC
+      LIMIT $2 OFFSET $3
+    `, [req.params.id, lim, off]);
+
+    const countResult = await get(
+      'SELECT COUNT(*)::int AS total FROM comments WHERE video_id = $1',
+      [req.params.id]
+    );
+
+    res.json({
+      comments: comments.map(c => ({
+        id: c.id,
+        content: c.content,
+        createdAt: c.created_at,
+        updatedAt: c.updated_at,
+        author: {
+          id: c.user_id,
+          name: c.user_name,
+          username: c.user_username,
+          avatarUrl: c.user_avatar ? publicUrl(c.user_avatar) : null
+        }
+      })),
+      total: countResult.total
+    });
+  } catch (err) {
+    console.error('Error obteniendo comentarios:', err);
+    if (err.code === '22P02') return res.status(400).json({ message: 'ID inválido' });
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+// ============ CREAR COMENTARIO ============
+router.post('/:id/comments', authRequired, async (req, res) => {
+  try {
+    const { content } = req.body;
+
+    if (!content || content.trim().length === 0) {
+      return res.status(400).json({ message: 'El comentario no puede estar vacío' });
+    }
+    if (content.length > 1000) {
+      return res.status(400).json({ message: 'Máximo 1000 caracteres' });
+    }
+
+    // Verificar que el video existe
+    const video = await get('SELECT id FROM videos WHERE id = $1', [req.params.id]);
+    if (!video) return res.status(404).json({ message: 'Video no encontrado' });
+
+    const comment = await get(`
+      INSERT INTO comments (video_id, user_id, content)
+      VALUES ($1, $2, $3)
+      RETURNING id, content, created_at
+    `, [req.params.id, req.user.id, content.trim()]);
+
+    // Obtener info del autor
+    const user = await get(
+      'SELECT id, name, username, avatar_url FROM users WHERE id = $1',
+      [req.user.id]
+    );
+
+    res.status(201).json({
+      comment: {
+        id: comment.id,
+        content: comment.content,
+        createdAt: comment.created_at,
+        author: {
+          id: user.id,
+          name: user.name,
+          username: user.username,
+          avatarUrl: user.avatar_url ? publicUrl(user.avatar_url) : null
+        }
+      }
+    });
+  } catch (err) {
+    console.error('Error creando comentario:', err);
+    if (err.code === '22P02') {
+      return res.status(400).json({ message: 'ID inválido' });
+    }
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+// ============ ELIMINAR COMENTARIO ============
+router.delete('/:videoId/comments/:commentId', authRequired, async (req, res) => {
+  try {
+    const comment = await get(
+      'SELECT id, user_id FROM comments WHERE id = $1 AND video_id = $2',
+      [req.params.commentId, req.params.videoId]
+    );
+
+    if (!comment) return res.status(404).json({ message: 'Comentario no encontrado' });
+    if (comment.user_id !== req.user.id) {
+      return res.status(403).json({ message: 'No autorizado' });
+    }
+
+    await run('DELETE FROM comments WHERE id = $1', [comment.id]);
+    res.json({ message: 'Comentario eliminado' });
+  } catch (err) {
+    console.error('Error eliminando comentario:', err);
+    if (err.code === '22P02') return res.status(400).json({ message: 'ID inválido' });
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+// ============================================================
+//  ELIMINAR VIDEO
+// ============================================================
 router.delete('/:id', authRequired, async (req, res) => {
   try {
     const video = await get(
@@ -188,7 +389,7 @@ router.delete('/:id', authRequired, async (req, res) => {
       return res.status(404).json({ message: 'Video no encontrado o no autorizado' });
     }
 
-    // ============ ELIMINAR DE S3 ============
+    // Eliminar de S3
     try {
       const { deleteFile } = await import('../services/s3.js');
 
@@ -219,15 +420,13 @@ router.delete('/:id', authRequired, async (req, res) => {
       console.error('⚠️  Error eliminando de S3:', err.message);
     }
 
-    // ============ ELIMINAR DE LA BD ============
-    // ON DELETE CASCADE limpia reacciones, views_log y comentarios
+    // Eliminar de la BD (CASCADE borra reacciones, views_log y comentarios)
     await run('DELETE FROM videos WHERE id = $1', [video.id]);
 
     res.json({
       message: 'Video eliminado correctamente',
       deletedFiles: true
     });
-
   } catch (err) {
     console.error('Error eliminando video:', err);
     if (err.code === '22P02') {
@@ -251,7 +450,6 @@ async function listHLSDirectory(baseKey) {
     }
 
     const xml = await res.text();
-
     const keyRegex = /<Key>([^<]+)<\/Key>/g;
     let match;
     while ((match = keyRegex.exec(xml)) !== null) {
@@ -288,7 +486,10 @@ function serializeVideo(v) {
     videoType: useHls ? 'hls' : 'mp4',
     status: v.processing_status,
     variants: v.variants || null,
-    author: { name: v.author_name, username: v.author_username },
+    author: { 
+      name: v.author_name, 
+      username: v.author_username 
+    },
     createdAt: v.created_at
   };
 }
