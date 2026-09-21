@@ -22,7 +22,6 @@
     --text-2: #aaaaaa;
     --text-3: #717171;
     --green: #2ecc71;
-    --header-h: 56px;
   }
 
   html, body {
@@ -34,51 +33,40 @@
     -webkit-font-smoothing: antialiased;
   }
 
-  body { padding-bottom: 40px; }
-
-  /* ============ HEADER ============ */
-  .top-header {
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    height: var(--header-h);
-    background: var(--bg);
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 0 16px;
-    z-index: 100;
-    border-bottom: 1px solid var(--border);
+  body.no-scroll {
+    overflow: hidden;
   }
 
-  .back-btn {
-    width: 36px;
-    height: 36px;
+  /* ============ BOTÓN VOLVER FLOTANTE ============ */
+  .floating-back {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: none;
+    color: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: transparent;
-    border: none;
-    color: var(--text);
     cursor: pointer;
-    border-radius: 50%;
-    transition: background 0.15s ease;
+    z-index: 100;
+    transition: all 0.2s ease;
   }
 
-  .back-btn:hover { background: var(--bg-3); }
-
-  .back-btn svg { width: 20px; height: 20px; }
-
-  .header-title {
-    font-size: 16px;
-    font-weight: 500;
-    letter-spacing: -0.3px;
+  .floating-back:hover {
+    background: rgba(0, 0, 0, 0.85);
+    transform: scale(1.05);
   }
 
-  .header-title span { color: var(--red); }
+  .floating-back svg { width: 20px; height: 20px; }
 
   /* ============ PLAYER ============ */
   .player-wrapper {
-    margin-top: var(--header-h);
     width: 100%;
     background: #000;
     position: relative;
@@ -100,6 +88,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    z-index: 2;
   }
 
   .player-placeholder img {
@@ -113,97 +102,87 @@
   .placeholder-overlay {
     position: absolute;
     inset: 0;
-    background: rgba(0,0,0,0.3);
+    background: rgba(0, 0, 0, 0.3);
     display: flex;
     align-items: center;
     justify-content: center;
   }
 
   .big-play {
-    width: 68px;
-    height: 68px;
+    width: 72px;
+    height: 72px;
     border-radius: 50%;
-    background: rgba(229, 9, 20, 0.9);
+    background: rgba(229, 9, 20, 0.92);
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
+    transition: all 0.25s ease;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
   }
 
   .player-placeholder:hover .big-play {
     background: var(--red);
-    transform: scale(1.05);
+    transform: scale(1.08);
   }
 
   .big-play svg {
-    width: 26px;
-    height: 26px;
+    width: 28px;
+    height: 28px;
     color: #fff;
-    margin-left: 3px;
+    margin-left: 4px;
   }
 
   .quality-indicator {
     position: absolute;
     top: 12px;
     right: 12px;
-    padding: 3px 8px;
-    background: rgba(0,0,0,0.7);
+    padding: 4px 10px;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     color: #fff;
     font-size: 11px;
     font-weight: 500;
-    border-radius: 3px;
+    border-radius: 4px;
     display: none;
+    z-index: 5;
   }
 
-  /* ============ INFO ============ */
-  .container {
-    max-width: 1280px;
+  /* ============ CONTENIDO ============ */
+  .content {
+    max-width: 900px;
     margin: 0 auto;
-    padding: 0 16px;
+    padding: 16px 16px 40px;
   }
 
+  /* ============ TÍTULO ============ */
   .video-title {
     font-size: 18px;
     font-weight: 500;
     line-height: 1.35;
-    margin: 16px 0 8px;
-  }
-
-  .video-stats {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 13px;
-    color: var(--text-3);
     margin-bottom: 16px;
+    color: var(--text);
+    letter-spacing: -0.2px;
   }
 
-  .video-stats .dot {
-    width: 3px;
-    height: 3px;
-    border-radius: 50%;
-    background: var(--text-3);
-  }
-
-  /* ============ CANAL + ACCIONES ============ */
-  .channel-row {
+  /* ============ INFO DEL AUTOR + ACCIONES ============ */
+  .author-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 12px 0;
-    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
     flex-wrap: wrap;
   }
 
-  .channel-info {
+  .author-info {
     display: flex;
     align-items: center;
     gap: 10px;
     min-width: 0;
   }
 
-  .channel-avatar {
+  .author-avatar {
     width: 40px;
     height: 40px;
     border-radius: 50%;
@@ -215,41 +194,65 @@
     font-weight: 500;
     color: #fff;
     flex-shrink: 0;
+    overflow: hidden;
+    text-transform: uppercase;
   }
 
-  .channel-name {
+  .author-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .author-name {
     font-size: 14px;
     font-weight: 500;
+    color: var(--text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
+  .author-meta {
+    font-size: 11px;
+    color: var(--text-3);
+    margin-top: 2px;
+  }
+
+  /* ============ ACCIONES ============ */
   .actions {
     display: flex;
-    gap: 8px;
+    gap: 6px;
     flex-shrink: 0;
+    align-items: center;
   }
 
   .action-btn {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 14px;
+    padding: 8px 12px;
     background: var(--bg-3);
     border: none;
-    border-radius: 18px;
+    border-radius: 20px;
     color: var(--text);
     font-family: inherit;
     font-size: 13px;
     font-weight: 500;
     cursor: pointer;
-    transition: background 0.15s ease;
+    transition: all 0.2s ease;
+    white-space: nowrap;
   }
 
   .action-btn:hover { background: var(--bg-hover); }
+  .action-btn:active { transform: scale(0.96); }
 
-  .action-btn svg { width: 18px; height: 18px; }
+  .action-btn svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+  .action-btn .count {
+    font-size: 12px;
+    font-weight: 500;
+  }
 
   .action-btn.like.active {
     background: rgba(46, 204, 113, 0.15);
@@ -261,34 +264,64 @@
     color: var(--red);
   }
 
-  .action-btn.download {
-    background: var(--bg-3);
-    color: var(--text);
+  .action-btn.icon-only {
+    padding: 8px;
+    width: 40px;
+    height: 40px;
+    justify-content: center;
+  }
+
+  /* Separador vertical */
+  .actions-divider {
+    width: 1px;
+    height: 24px;
+    background: var(--border);
+    margin: 0 2px;
   }
 
   /* ============ DESCRIPCIÓN ============ */
   .description {
     padding: 14px;
     background: var(--bg-2);
-    border-radius: 8px;
-    margin-top: 12px;
-    font-size: 14px;
-    line-height: 1.5;
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.55;
     color: var(--text-2);
+    margin-bottom: 24px;
   }
 
-  /* ============ RELACIONADOS ============ */
-  .related {
+  .description-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+  }
+
+  /* ============ VIDEOS RELACIONADOS ============ */
+  .related-section {
     margin-top: 24px;
   }
 
-  .related h3 {
+  .related-title {
     font-size: 14px;
     font-weight: 500;
     color: var(--text-2);
-    margin-bottom: 12px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .related-title::before {
+    content: '';
+    width: 3px;
+    height: 16px;
+    background: var(--red);
+    border-radius: 2px;
   }
 
   .related-list {
@@ -297,56 +330,373 @@
     gap: 12px;
   }
 
-  .related-card {
+  .related-item {
     display: flex;
-    gap: 10px;
+    gap: 12px;
     cursor: pointer;
+    padding: 6px;
+    border-radius: 8px;
+    transition: background 0.15s ease;
   }
 
+  .related-item:hover { background: var(--bg-2); }
+
   .related-thumb {
-    position: relative;
-    width: 160px;
+    width: 150px;
     aspect-ratio: 16 / 9;
-    background: var(--bg-2);
+    background: var(--bg-3);
     border-radius: 8px;
     overflow: hidden;
     flex-shrink: 0;
+    position: relative;
   }
 
   .related-thumb img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    display: block;
   }
 
   .related-duration {
     position: absolute;
     bottom: 4px;
     right: 4px;
-    padding: 2px 4px;
-    background: rgba(0,0,0,0.85);
+    padding: 2px 5px;
+    background: rgba(0, 0, 0, 0.85);
     border-radius: 3px;
     font-size: 10px;
     font-weight: 500;
     color: #fff;
   }
 
-  .related-info { flex: 1; min-width: 0; }
+  .related-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
 
-  .related-title {
+  .related-item-title {
     font-size: 13px;
     font-weight: 500;
     line-height: 1.35;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    color: var(--text);
   }
 
-  .related-meta {
+  .related-item-meta {
     font-size: 11px;
     color: var(--text-3);
+  }
+
+  /* ============ BOTTOM SHEET (COMENTARIOS) ============ */
+  .sheet-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 200;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+  }
+
+  .sheet-overlay.open {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .comments-sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60vh;
+    max-height: 600px;
+    background: var(--bg-2);
+    border-radius: 16px 16px 0 0;
+    z-index: 201;
+    transform: translateY(100%);
+    transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.5);
+  }
+
+  .comments-sheet.open {
+    transform: translateY(0);
+  }
+
+  /* Handle de arrastre visual */
+  .sheet-handle {
+    width: 40px;
+    height: 4px;
+    background: var(--bg-hover);
+    border-radius: 2px;
+    margin: 10px auto 0;
+    flex-shrink: 0;
+  }
+
+  /* Header del sheet */
+  .sheet-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .sheet-title {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .sheet-count {
+    font-size: 13px;
+    color: var(--text-3);
+    margin-left: 6px;
+    font-weight: 400;
+  }
+
+  .sheet-close {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--text-3);
+    cursor: pointer;
+    border-radius: 50%;
+    transition: all 0.15s ease;
+  }
+
+  .sheet-close:hover {
+    background: var(--bg-3);
+    color: var(--text);
+  }
+
+  .sheet-close svg { width: 18px; height: 18px; }
+
+  /* Lista de comentarios */
+  .comments-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .comments-list::-webkit-scrollbar { width: 4px; }
+  .comments-list::-webkit-scrollbar-thumb {
+    background: var(--bg-hover);
+    border-radius: 2px;
+  }
+
+  .comments-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-3);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .comment-item {
+    display: flex;
+    gap: 10px;
+    animation: commentIn 0.3s ease;
+  }
+
+  @keyframes commentIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .comment-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--bg-3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    flex-shrink: 0;
+    text-transform: uppercase;
+    overflow: hidden;
+  }
+
+  .comment-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .comment-body {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .comment-header {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+  }
+
+  .comment-author {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .comment-time {
+    font-size: 11px;
+    color: var(--text-3);
+  }
+
+  .comment-content {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text);
+    word-wrap: break-word;
+    white-space: pre-wrap;
+  }
+
+  .comment-delete {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    color: var(--text-3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    align-self: flex-start;
+    transition: all 0.15s ease;
+    opacity: 0;
+  }
+
+  .comment-item:hover .comment-delete { opacity: 1; }
+
+  .comment-delete:hover {
+    background: rgba(229, 9, 20, 0.1);
+    color: var(--red);
+  }
+
+  .comment-delete svg { width: 14px; height: 14px; }
+
+  /* Formulario de comentario */
+  .comment-form {
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-2);
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    flex-shrink: 0;
+    padding-bottom: max(12px, env(safe-area-inset-bottom, 12px));
+  }
+
+  .comment-form-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--red);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 500;
+    color: #fff;
+    flex-shrink: 0;
+    text-transform: uppercase;
+  }
+
+  .comment-input-wrapper {
+    flex: 1;
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+    background: var(--bg-3);
+    border: 1.5px solid var(--border);
+    border-radius: 22px;
+    padding: 4px 4px 4px 14px;
+    transition: border-color 0.2s ease;
+  }
+
+  .comment-input-wrapper:focus-within {
+    border-color: var(--red);
+  }
+
+  .comment-input {
+    flex: 1;
+    padding: 8px 0;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.4;
+    resize: none;
+    outline: none;
+    max-height: 100px;
+    overflow-y: auto;
+  }
+
+  .comment-input::placeholder {
+    color: var(--text-3);
+  }
+
+  .comment-send {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: var(--red);
+    border: none;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+  }
+
+  .comment-send:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .comment-send:not(:disabled):hover {
+    background: #ff1a26;
+    transform: scale(1.05);
+  }
+
+  .comment-send svg {
+    width: 16px;
+    height: 16px;
+    margin-left: -1px;
   }
 
   /* ============ TOAST ============ */
@@ -355,16 +705,19 @@
     bottom: 24px;
     left: 50%;
     transform: translateX(-50%) translateY(100px);
-    padding: 10px 18px;
+    padding: 12px 20px;
     background: var(--bg-3);
-    border-radius: 6px;
+    border-radius: 8px;
     color: var(--text);
     font-size: 13px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    font-weight: 500;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
     opacity: 0;
-    transition: all 0.3s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     pointer-events: none;
-    z-index: 200;
+    z-index: 300;
+    max-width: calc(100% - 32px);
+    border-left: 3px solid var(--text-3);
   }
 
   .toast.show {
@@ -372,35 +725,43 @@
     opacity: 1;
   }
 
+  .toast.success { border-left-color: var(--green); }
+  .toast.error { border-left-color: var(--red); }
+
   /* ============ RESPONSIVE ============ */
   @media (min-width: 1000px) {
-    .container {
+    .content {
+      max-width: 1000px;
       display: grid;
-      grid-template-columns: 1fr 380px;
-      gap: 24px;
-      max-width: 1400px;
-      margin: 0 auto;
+      grid-template-columns: 1fr 360px;
+      gap: 32px;
+      padding: 24px 24px 40px;
     }
 
     .main-col { min-width: 0; }
-    .side-col { padding-top: 16px; }
+    .side-col { padding-top: 8px; }
 
-    .related { margin-top: 0; }
+    .related-section { margin-top: 0; }
+
+    .comments-sheet {
+      max-width: 600px;
+      margin: 0 auto;
+      border-radius: 16px 16px 0 0;
+    }
   }
 </style>
 </head>
 <body>
 
-<header class="top-header">
-  <button class="back-btn" id="backBtn" aria-label="Volver">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <line x1="19" y1="12" x2="5" y2="12"></line>
-      <polyline points="12 19 5 12 12 5"></polyline>
-    </svg>
-  </button>
-  <div class="header-title">XV<span>NN</span></div>
-</header>
+<!-- ============ BOTÓN VOLVER FLOTANTE ============ -->
+<button class="floating-back" id="backBtn" aria-label="Volver">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="19" y1="12" x2="5" y2="12"></line>
+    <polyline points="12 19 5 12 12 5"></polyline>
+  </svg>
+</button>
 
+<!-- ============ PLAYER ============ -->
 <div class="player-wrapper">
   <video id="videoPlayer" controls playsinline preload="metadata" style="display:none;"></video>
   <div class="player-placeholder" id="playerPlaceholder">
@@ -416,38 +777,52 @@
   <div class="quality-indicator" id="qualityIndicator"></div>
 </div>
 
-<div class="container">
+<!-- ============ CONTENIDO ============ -->
+<div class="content">
   <div class="main-col">
+
+    <!-- Título -->
     <h1 class="video-title" id="videoTitle">Cargando...</h1>
 
-    <div class="video-stats">
-      <span id="videoViews">0 vistas</span>
-      <span class="dot"></span>
-      <span id="videoDate">Hoy</span>
-    </div>
-
-    <div class="channel-row">
-      <div class="channel-info">
-        <div class="channel-avatar" id="channelAvatar">?</div>
-        <div class="channel-name" id="channelName">Autor</div>
+    <!-- Autor + acciones -->
+    <div class="author-row">
+      <div class="author-info">
+        <div class="author-avatar" id="authorAvatar">?</div>
+        <div>
+          <div class="author-name" id="authorName">Autor</div>
+          <div class="author-meta" id="authorMeta">0 vistas · Hoy</div>
+        </div>
       </div>
 
       <div class="actions">
+        <!-- Like -->
         <button class="action-btn like" id="likeBtn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
           </svg>
-          <span id="likeCount">0</span>
+          <span class="count" id="likeCount">0</span>
         </button>
 
+        <!-- Dislike -->
         <button class="action-btn dislike" id="dislikeBtn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path>
           </svg>
-          <span id="dislikeCount">0</span>
+          <span class="count" id="dislikeCount">0</span>
         </button>
 
-        <button class="action-btn download" id="downloadBtn" title="Descargar">
+        <div class="actions-divider"></div>
+
+        <!-- Comentarios -->
+        <button class="action-btn" id="commentsBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+          </svg>
+          <span class="count" id="commentsCount">0</span>
+        </button>
+
+        <!-- Descargar -->
+        <button class="action-btn icon-only" id="downloadBtn" title="Descargar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
             <polyline points="7 10 12 15 17 10"></polyline>
@@ -457,18 +832,67 @@
       </div>
     </div>
 
-    <div class="description" id="videoDescription">Cargando...</div>
+    <!-- Descripción -->
+    <div class="description" id="videoDescription">
+      <div class="description-label">Descripción</div>
+      <div id="videoDescriptionText">Cargando...</div>
+    </div>
+
   </div>
 
-  <aside class="side-col">
-    <div class="related">
-      <h3>Relacionados</h3>
+  <!-- Videos relacionados -->
+  <div class="side-col">
+    <div class="related-section">
+      <div class="related-title">Videos recomendados</div>
       <div class="related-list" id="relatedList"></div>
     </div>
-  </aside>
+  </div>
 </div>
 
-<div class="toast" id="toast">Mensaje</div>
+<!-- ============ BOTTOM SHEET - COMENTARIOS ============ -->
+<div class="sheet-overlay" id="sheetOverlay"></div>
+
+<div class="comments-sheet" id="commentsSheet">
+  <div class="sheet-handle"></div>
+
+  <div class="sheet-header">
+    <div class="sheet-title">
+      Comentarios<span class="sheet-count" id="sheetCount">(0)</span>
+    </div>
+    <button class="sheet-close" id="sheetClose" aria-label="Cerrar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+  </div>
+
+  <div class="comments-list" id="commentsList">
+    <div class="comments-empty">Cargando comentarios...</div>
+  </div>
+
+  <form class="comment-form" id="commentForm">
+    <div class="comment-form-avatar" id="myAvatar">?</div>
+    <div class="comment-input-wrapper">
+      <textarea 
+        class="comment-input"
+        id="commentInput"
+        placeholder="Añade un comentario..."
+        maxlength="1000"
+        rows="1"
+      ></textarea>
+      <button type="submit" class="comment-send" id="commentSend" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"></line>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+        </svg>
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- ============ TOAST ============ -->
+<div class="toast" id="toast"></div>
 
 <script>
   const API_URL = window.location.origin + '/api';
@@ -482,28 +906,115 @@
   let currentVideo = null;
   let userReaction = null;
   let hlsInstance = null;
+  let currentUser = null;
 
   const els = {
     backBtn: document.getElementById('backBtn'),
     player: document.getElementById('videoPlayer'),
     placeholder: document.getElementById('playerPlaceholder'),
     placeholderThumb: document.getElementById('placeholderThumb'),
+    qualityIndicator: document.getElementById('qualityIndicator'),
     title: document.getElementById('videoTitle'),
-    views: document.getElementById('videoViews'),
-    date: document.getElementById('videoDate'),
-    channelAvatar: document.getElementById('channelAvatar'),
-    channelName: document.getElementById('channelName'),
-    description: document.getElementById('videoDescription'),
+    authorAvatar: document.getElementById('authorAvatar'),
+    authorName: document.getElementById('authorName'),
+    authorMeta: document.getElementById('authorMeta'),
     likeBtn: document.getElementById('likeBtn'),
     dislikeBtn: document.getElementById('dislikeBtn'),
+    commentsBtn: document.getElementById('commentsBtn'),
     downloadBtn: document.getElementById('downloadBtn'),
     likeCount: document.getElementById('likeCount'),
     dislikeCount: document.getElementById('dislikeCount'),
+    commentsCount: document.getElementById('commentsCount'),
+    descriptionText: document.getElementById('videoDescriptionText'),
     relatedList: document.getElementById('relatedList'),
-    qualityIndicator: document.getElementById('qualityIndicator'),
+    // Sheet
+    sheetOverlay: document.getElementById('sheetOverlay'),
+    commentsSheet: document.getElementById('commentsSheet'),
+    sheetClose: document.getElementById('sheetClose'),
+    sheetCount: document.getElementById('sheetCount'),
+    commentsList: document.getElementById('commentsList'),
+    commentForm: document.getElementById('commentForm'),
+    commentInput: document.getElementById('commentInput'),
+    commentSend: document.getElementById('commentSend'),
+    myAvatar: document.getElementById('myAvatar'),
     toast: document.getElementById('toast')
   };
 
+  // ============================================================
+  //  UTILIDADES
+  // ============================================================
+  function formatNumber(n) {
+    if (n >= 1000000) return (n / 1000000).toFixed(1).replace('.0', '') + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1).replace('.0', '') + 'K';
+    return n.toString();
+  }
+
+  function formatRelativeTime(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const diff = Date.now() - d;
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'ahora';
+    if (mins < 60) return `hace ${mins} min`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `hace ${hours}h`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `hace ${days}d`;
+    const weeks = Math.floor(days / 7);
+    if (weeks < 4) return `hace ${weeks} sem`;
+    const months = Math.floor(days / 30);
+    if (months < 12) return `hace ${months} mes${months > 1 ? 'es' : ''}`;
+    const years = Math.floor(days / 365);
+    return `hace ${years} año${years > 1 ? 's' : ''}`;
+  }
+
+  function formatViews(n) {
+    if (n >= 1000000) return (n / 1000000).toFixed(1).replace('.0', '') + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1).replace('.0', '') + 'K';
+    return n.toString();
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text || '';
+    return div.innerHTML;
+  }
+
+  let toastTimer;
+  function showToast(msg, type = 'info') {
+    els.toast.textContent = msg;
+    els.toast.className = `toast show ${type}`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => els.toast.classList.remove('show'), 2500);
+  }
+
+  // ============================================================
+  //  CARGAR USUARIO ACTUAL (para el avatar del comentario)
+  // ============================================================
+  async function loadCurrentUser() {
+    try {
+      const res = await fetch(`${API_URL}/auth/me`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok && data.user) {
+        currentUser = data.user;
+        const initial = (data.user.name || data.user.username || '?').charAt(0).toUpperCase();
+        
+        if (data.user.avatarUrl) {
+          els.myAvatar.innerHTML = `<img src="${data.user.avatarUrl}" alt="">`;
+        } else {
+          els.myAvatar.textContent = initial;
+        }
+      }
+    } catch (err) {
+      console.warn('No se pudo cargar el usuario actual');
+    }
+  }
+
+  // ============================================================
+  //  CARGAR VIDEO
+  // ============================================================
   async function loadVideo() {
     try {
       const res = await fetch(`${API_URL}/videos/${videoId}`, {
@@ -512,7 +1023,7 @@
       const data = await res.json();
 
       if (!res.ok) {
-        showToast(data.message || 'Video no encontrado');
+        showToast(data.message || 'Video no encontrado', 'error');
         setTimeout(() => window.location.href = 'web.html', 1500);
         return;
       }
@@ -520,66 +1031,86 @@
       currentVideo = data;
       userReaction = data.userReaction;
 
+      // Título
       els.title.textContent = data.title;
-      els.views.textContent = `${data.views} vistas`;
-      els.date.textContent = formatDate(data.createdAt);
-      els.description.textContent = data.description || 'Sin descripción';
+
+      // Autor
+      const authorName = data.author?.name || 'Anónimo';
+      const authorInitial = authorName.charAt(0).toUpperCase();
+      els.authorName.textContent = authorName;
+      els.authorAvatar.textContent = authorInitial;
+
+      // Meta: vistas · fecha
+      els.authorMeta.textContent = `${data.views} vistas · ${formatRelativeTime(data.createdAt)}`;
+
+      // Descripción
+      els.descriptionText.textContent = data.description || 'Sin descripción';
+
+      // Thumbnail en placeholder
       els.placeholderThumb.src = data.thumb;
       els.player.poster = data.thumb;
+
+      // Contadores
       els.likeCount.textContent = formatNumber(data.likes);
       els.dislikeCount.textContent = formatNumber(data.dislikes);
+      els.commentsCount.textContent = formatNumber(data.commentsCount || 0);
+      els.sheetCount.textContent = `(${data.commentsCount || 0})`;
 
-      const authorName = data.author?.name || 'Anónimo';
-      els.channelName.textContent = authorName;
-      els.channelAvatar.textContent = authorName.charAt(0).toUpperCase();
-
+      // Estado inicial de reacciones
       if (userReaction === 'like') els.likeBtn.classList.add('active');
       else if (userReaction === 'dislike') els.dislikeBtn.classList.add('active');
 
       document.title = `${data.title} · XVNN`;
 
+      // Cargar relacionados
       loadRelated();
     } catch (err) {
-      showToast('Error cargando video');
+      console.error(err);
+      showToast('Error cargando video', 'error');
     }
   }
 
+  // ============================================================
+  //  CARGAR RECOMENDADOS
+  // ============================================================
   async function loadRelated() {
     try {
-      const res = await fetch(`${API_URL}/videos?category=${currentVideo.category}&limit=8`);
+      const res = await fetch(`${API_URL}/videos/recommended?exclude=${videoId}&limit=6`);
       const data = await res.json();
-      const related = (data.videos || []).filter(v => v.id !== videoId).slice(0, 6);
+      const related = data.videos || [];
 
-      if (!related.length) {
-        els.relatedList.innerHTML = '<p style="color:var(--text-3);font-size:13px;">Sin videos relacionados</p>';
+      if (related.length === 0) {
+        els.relatedList.innerHTML = '<p style="color:var(--text-3);font-size:13px;padding:8px;">Sin videos recomendados</p>';
         return;
       }
 
       els.relatedList.innerHTML = related.map(v => `
-        <div class="related-card" data-id="${v.id}">
+        <div class="related-item" data-id="${v.id}">
           <div class="related-thumb">
-            <img src="${v.thumb}" alt="">
+            <img src="${v.thumb}" alt="" loading="lazy">
             <span class="related-duration">${v.duration}</span>
           </div>
           <div class="related-info">
-            <div class="related-title">${escapeHtml(v.title)}</div>
-            <div class="related-meta">${v.views} vistas</div>
+            <div class="related-item-title">${escapeHtml(v.title)}</div>
+            <div class="related-item-meta">${v.views} vistas · ${v.likes} likes</div>
           </div>
         </div>
       `).join('');
 
-      document.querySelectorAll('.related-card').forEach(card => {
-        card.addEventListener('click', () => {
-          localStorage.setItem('xvnn_current_video', card.dataset.id);
-          window.location.href = `watch.html?id=${card.dataset.id}`;
+      document.querySelectorAll('.related-item').forEach(item => {
+        item.addEventListener('click', () => {
+          localStorage.setItem('xvnn_current_video', item.dataset.id);
+          window.location.href = `watch.html?id=${item.dataset.id}`;
         });
       });
     } catch (err) {
-      console.error(err);
+      console.error('Error cargando recomendados:', err);
     }
   }
 
-  // ============ PLAYER ============
+  // ============================================================
+  //  PLAYER
+  // ============================================================
   els.placeholder.addEventListener('click', () => {
     els.placeholder.style.display = 'none';
     els.player.style.display = 'block';
@@ -629,10 +1160,13 @@
       els.player.play().catch(() => {});
     }
 
+    // Registrar vista
     fetch(`${API_URL}/videos/${videoId}/view`, { method: 'POST' }).catch(() => {});
   });
 
-  // ============ REACCIONES ============
+  // ============================================================
+  //  REACCIONES (LIKE / DISLIKE)
+  // ============================================================
   async function react(reaction) {
     try {
       const res = await fetch(`${API_URL}/videos/${videoId}/react`, {
@@ -653,14 +1187,16 @@
       els.likeBtn.classList.toggle('active', userReaction === 'like');
       els.dislikeBtn.classList.toggle('active', userReaction === 'dislike');
     } catch (err) {
-      showToast('Error');
+      showToast('Error al reaccionar', 'error');
     }
   }
 
   els.likeBtn.addEventListener('click', () => react(userReaction === 'like' ? null : 'like'));
   els.dislikeBtn.addEventListener('click', () => react(userReaction === 'dislike' ? null : 'dislike'));
 
-  // ============ DESCARGA ============
+  // ============================================================
+  //  DESCARGA
+  // ============================================================
   els.downloadBtn.addEventListener('click', () => {
     const link = document.createElement('a');
     link.href = `${API_URL}/videos/${videoId}/download`;
@@ -668,33 +1204,206 @@
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    showToast('Descarga iniciada');
+    showToast('Descarga iniciada', 'success');
   });
 
-  // ============ NAVEGACIÓN (BOTÓN VOLVER) ============
+  // ============================================================
+  //  BOTTOM SHEET - COMENTARIOS
+  // ============================================================
+  function openCommentsSheet() {
+    els.commentsSheet.classList.add('open');
+    els.sheetOverlay.classList.add('open');
+    document.body.classList.add('no-scroll');
+    loadComments();
+  }
+
+  function closeCommentsSheet() {
+    els.commentsSheet.classList.remove('open');
+    els.sheetOverlay.classList.remove('open');
+    document.body.classList.remove('no-scroll');
+  }
+
+  els.commentsBtn.addEventListener('click', openCommentsSheet);
+  els.sheetClose.addEventListener('click', closeCommentsSheet);
+  els.sheetOverlay.addEventListener('click', closeCommentsSheet);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && els.commentsSheet.classList.contains('open')) {
+      closeCommentsSheet();
+    }
+  });
+
+  // ============================================================
+  //  CARGAR COMENTARIOS
+  // ============================================================
+  async function loadComments() {
+    els.commentsList.innerHTML = '<div class="comments-empty">Cargando...</div>';
+
+    try {
+      const res = await fetch(`${API_URL}/videos/${videoId}/comments?limit=100`);
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.message);
+
+      // Actualizar contadores
+      const total = data.total || 0;
+      els.commentsCount.textContent = formatNumber(total);
+      els.sheetCount.textContent = `(${total})`;
+
+      if (!data.comments || data.comments.length === 0) {
+        els.commentsList.innerHTML = `
+          <div class="comments-empty">
+            Todavía no hay comentarios.<br>Sé el primero en comentar 👇
+          </div>
+        `;
+        return;
+      }
+
+      els.commentsList.innerHTML = data.comments.map(c => renderComment(c)).join('');
+      attachCommentDeleteEvents();
+
+    } catch (err) {
+      console.error(err);
+      els.commentsList.innerHTML = '<div class="comments-empty">Error cargando comentarios</div>';
+    }
+  }
+
+  function renderComment(c) {
+    const initial = (c.author?.name || c.author?.username || '?').charAt(0).toUpperCase();
+    const isOwn = currentUser && c.author?.id === currentUser.id;
+
+    return `
+      <div class="comment-item" data-comment-id="${c.id}">
+        <div class="comment-avatar">${escapeHtml(initial)}</div>
+        <div class="comment-body">
+          <div class="comment-header">
+            <span class="comment-author">${escapeHtml(c.author?.name || c.author?.username || 'Anónimo')}</span>
+            <span class="comment-time">${formatRelativeTime(c.createdAt)}</span>
+          </div>
+          <div class="comment-content">${escapeHtml(c.content)}</div>
+        </div>
+        ${isOwn ? `
+          <button class="comment-delete" data-comment-id="${c.id}" title="Eliminar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  function attachCommentDeleteEvents() {
+    document.querySelectorAll('.comment-delete').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const commentId = btn.dataset.commentId;
+        if (!confirm('¿Eliminar este comentario?')) return;
+
+        try {
+          const res = await fetch(`${API_URL}/videos/${videoId}/comments/${commentId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+
+          if (!res.ok) throw new Error('Error');
+
+          btn.closest('.comment-item').remove();
+
+          // Actualizar contadores
+          const newTotal = Math.max(0, parseInt(els.sheetCount.textContent.replace(/\D/g, '')) - 1);
+          els.sheetCount.textContent = `(${newTotal})`;
+          els.commentsCount.textContent = formatNumber(newTotal);
+
+          if (newTotal === 0) {
+            els.commentsList.innerHTML = `
+              <div class="comments-empty">
+                Todavía no hay comentarios.<br>Sé el primero en comentar 👇
+              </div>
+            `;
+          }
+        } catch (err) {
+          showToast('Error eliminando comentario', 'error');
+        }
+      });
+    });
+  }
+
+  // ============================================================
+  //  ENVIAR COMENTARIO
+  // ============================================================
+  els.commentInput.addEventListener('input', () => {
+    // Auto-resize
+    els.commentInput.style.height = 'auto';
+    els.commentInput.style.height = Math.min(els.commentInput.scrollHeight, 100) + 'px';
+    // Habilitar/deshabilitar botón
+    els.commentSend.disabled = !els.commentInput.value.trim();
+  });
+
+  els.commentForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const content = els.commentInput.value.trim();
+    if (!content) return;
+
+    els.commentSend.disabled = true;
+
+    try {
+      const res = await fetch(`${API_URL}/videos/${videoId}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ content })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+
+      // Quitar empty si existe
+      const empty = els.commentsList.querySelector('.comments-empty');
+      if (empty) empty.remove();
+
+      // Insertar al principio
+      els.commentsList.insertAdjacentHTML('afterbegin', renderComment(data.comment));
+
+      // Actualizar contadores
+      const newTotal = parseInt(els.sheetCount.textContent.replace(/\D/g, '')) + 1;
+      els.sheetCount.textContent = `(${newTotal})`;
+      els.commentsCount.textContent = formatNumber(newTotal);
+
+      // Limpiar
+      els.commentInput.value = '';
+      els.commentInput.style.height = 'auto';
+      els.commentSend.disabled = true;
+
+      // Re-attach eventos
+      attachCommentDeleteEvents();
+
+      // Scroll al top
+      els.commentsList.scrollTop = 0;
+
+    } catch (err) {
+      showToast('Error: ' + err.message, 'error');
+      els.commentSend.disabled = false;
+    }
+  });
+
+  // ============================================================
+  //  BOTÓN VOLVER
+  // ============================================================
   els.backBtn.addEventListener('click', () => {
     if (hlsInstance) hlsInstance.destroy();
 
-    // Si hay historial navegable del mismo sitio → volver
     if (window.history.length > 1 && document.referrer) {
       try {
         const refUrl = new URL(document.referrer);
         const currentUrl = new URL(window.location.href);
-
-        // Si viene del mismo dominio → usar history.back()
         if (refUrl.origin === currentUrl.origin) {
           window.history.back();
           return;
         }
-      } catch (e) {
-        // URL inválida, ignorar y usar fallback
-      }
-    }
-
-    // Fallback: no hay historial interno o viene de fuera
-    // Guardar la categoría actual para no perderla al volver
-    if (currentVideo?.category) {
-      localStorage.setItem('xvnn_category', currentVideo.category);
+      } catch (e) {}
     }
     window.location.href = 'web.html';
   });
@@ -703,41 +1412,13 @@
     if (hlsInstance) hlsInstance.destroy();
   });
 
-  // ============ UTILS ============
-  function formatNumber(n) {
-    if (n >= 1000000) return (n / 1000000).toFixed(1).replace('.0', '') + 'M';
-    if (n >= 1000) return (n / 1000).toFixed(1).replace('.0', '') + 'K';
-    return n.toString();
-  }
-
-  function formatDate(iso) {
-    if (!iso) return 'Hoy';
-    const d = new Date(iso);
-    const diff = Date.now() - d;
-    const days = Math.floor(diff / 86400000);
-    if (days === 0) return 'Hoy';
-    if (days === 1) return 'Ayer';
-    if (days < 7) return `Hace ${days} días`;
-    if (days < 30) return `Hace ${Math.floor(days / 7)} semanas`;
-    if (days < 365) return `Hace ${Math.floor(days / 30)} meses`;
-    return `Hace ${Math.floor(days / 365)} años`;
-  }
-
-  function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text || '';
-    return div.innerHTML;
-  }
-
-  let toastTimer;
-  function showToast(msg) {
-    els.toast.textContent = msg;
-    els.toast.classList.add('show');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => els.toast.classList.remove('show'), 2200);
-  }
-
-  loadVideo();
+  // ============================================================
+  //  INICIALIZACIÓN
+  // ============================================================
+  (async () => {
+    await loadCurrentUser();
+    await loadVideo();
+  })();
 </script>
 
 </body>
