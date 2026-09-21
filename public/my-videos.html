@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>XVNN · Mis Videos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --bg: #0f0f0f;
+    --bg-2: #181818;
+    --bg-3: #212121;
+    --bg-hover: #272727;
+    --border: #272727;
+    --red: #e50914;
+    --text: #f1f1f1;
+    --text-2: #aaaaaa;
+    --text-3: #717171;
+    --green: #2ecc71;
+    --header-h: 56px;
+  }
+
+  html, body {
+    min-height: 100%;
+    font-family: 'Roboto', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ============ HEADER ============ */
+  .top-header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: var(--header-h);
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 12px 0 8px;
+    z-index: 90;
+  }
+
+  .back-btn {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    cursor: pointer;
+    border-radius: 50%;
+    flex-shrink: 0;
+    transition: background 0.15s ease;
+  }
+
+  .back-btn:hover { background: var(--bg-3); }
+  .back-btn:active { background: var(--bg-hover); }
+
+  .back-btn svg { width: 20px; height: 20px; }
+
+  .header-title {
+    flex: 1;
+    font-size: 17px;
+    font-weight: 500;
+    letter-spacing: -0.3px;
+  }
+
+  /* ============ CONTENEDOR ============ */
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: calc(var(--header-h) + 12px) 0 40px;
+  }
+
+  /* ============ FILTROS DE CATEGORÍA ============ */
+  .filters-wrapper {
+    position: sticky;
+    top: var(--header-h);
+    background: var(--bg);
+    z-index: 80;
+    border-bottom: 1px solid var(--border);
+    padding: 10px 0;
+  }
+
+  .filters-scroll {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 0 16px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .filters-scroll::-webkit-scrollbar { display: none; }
+
+  .filter-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    color: var(--text-2);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+  }
+
+  .filter-chip:hover {
+    background: var(--bg-hover);
+    color: var(--text);
+  }
+
+  .filter-chip.active {
+    background: var(--red);
+    border-color: var(--red);
+    color: #fff;
+  }
+
+  .filter-chip .flag {
+    font-size: 14px;
+    line-height: 1;
+  }
+
+  /* ============ LISTA DE VIDEOS ============ */
+  .video-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 0;
+  }
+
+  .video-item {
+    display: flex;
+    gap: 12px;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    position: relative;
+  }
+
+  .video-item:hover {
+    background: var(--bg-2);
+  }
+
+  .video-item:active {
+    background: var(--bg-3);
+  }
+
+  .video-thumb {
+    width: 140px;
+    aspect-ratio: 16 / 9;
+    background: var(--bg-3);
+    border-radius: 8px;
+    overflow: hidden;
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .video-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .video-thumb .status-dot {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px rgba(0,0,0,0.5);
+  }
+
+  .video-thumb .status-dot.ready { background: var(--green); }
+  .video-thumb .status-dot.processing { 
+    background: var(--red);
+    animation: pulse 1.5s infinite;
+  }
+  .video-thumb .status-dot.failed { background: var(--text-3); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ============ INFO DEL VIDEO ============ */
+  .video-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding-right: 44px;
+  }
+
+  .video-title {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.35;
+    margin-bottom: 6px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    color: var(--text);
+  }
+
+  .video-status-line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    margin-bottom: 6px;
+  }
+
+  .status-badge {
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+
+  .status-badge.ready {
+    background: rgba(46, 204, 113, 0.15);
+    color: var(--green);
+  }
+
+  .status-badge.processing {
+    background: rgba(229, 9, 20, 0.15);
+    color: var(--red);
+  }
+
+  .status-badge.failed {
+    background: rgba(138, 138, 138, 0.15);
+    color: var(--text-3);
+  }
+
+  /* ============ STATS ============ */
+  .video-stats {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 12px;
+    color: var(--text-3);
+    flex-wrap: wrap;
+  }
+
+  .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .stat-item svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+  }
+
+  .stat-item .stat-value {
+    font-weight: 500;
+    color: var(--text-2);
+  }
+
+  /* ============ BOTÓN ELIMINAR ============ */
+  .delete-btn {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    transform: translateY(-50%);
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--text-3);
+    cursor: pointer;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    opacity: 0;
+  }
+
+  .video-item:hover .delete-btn {
+    opacity: 1;
+  }
+
+  .delete-btn:hover {
+    background: rgba(229, 9, 20, 0.15);
+    color: var(--red);
+  }
+
+  .delete-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  .delete-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  @media (hover: none) {
+    .delete-btn { opacity: 1; }
+  }
+
+  /* ============ EMPTY ============ */
+  .empty {
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--text-3);
+  }
+
+  .empty svg {
+    width: 56px;
+    height: 56px;
+    margin-bottom: 16px;
+    opacity: 0.35;
+  }
+
+  .empty h3 {
+    font-size: 16px;
+    font-weight: 400;
+    margin-bottom: 8px;
+    color: var(--text-2);
+  }
+
+  .empty p {
+    font-size: 13px;
+    line-height: 1.5;
+    max-width: 300px;
+    margin: 0 auto;
+  }
+
+  .empty .empty-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 20px;
+    padding: 10px 20px;
+    background: var(--red);
+    color: #fff;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+
+  .empty .empty-action:hover {
+    background: #ff1a26;
+    transform: translateY(-1px);
+  }
+
+  .empty .empty-action svg {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    opacity: 1;
+  }
+
+  /* ============ LOADING ============ */
+  .loading {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-3);
+    font-size: 13px;
+  }
+
+  .spinner {
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    border: 2.5px solid rgba(255,255,255,0.1);
+    border-top-color: var(--red);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin-bottom: 12px;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* ============ TOAST ============ */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    padding: 12px 20px;
+    background: var(--bg-3);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+    z-index: 200;
+    max-width: calc(100% - 32px);
+    border-left: 3px solid var(--text-3);
+  }
+
+  .toast.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+
+  .toast.success { border-left-color: var(--green); }
+  .toast.error { border-left-color: var(--red); }
+
+  /* ============ RESPONSIVE ============ */
+  @media (min-width: 640px) {
+    .video-thumb {
+      width: 160px;
+    }
+    .video-title {
+      font-size: 15px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ HEADER ============ -->
+<header class="top-header">
+  <button class="back-btn" id="backBtn" aria-label="Volver">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="19" y1="12" x2="5" y2="12"></line>
+      <polyline points="12 19 5 12 12 5"></polyline>
+    </svg>
+  </button>
+  <div class="header-title">Mis Videos</div>
+</header>
+
+<!-- ============ FILTROS ============ -->
+<div class="filters-wrapper">
+  <div class="filters-scroll" id="filtersScroll">
+    <button class="filter-chip active" data-cat="all">Todos</button>
+    <button class="filter-chip" data-cat="Hetero">
+      <span class="flag">👫</span> Hetero
+    </button>
+    <button class="filter-chip" data-cat="Gay">
+      <span class="flag">🏳️‍🌈</span> Gay
+    </button>
+    <button class="filter-chip" data-cat="Bi">
+      <span class="flag">💜</span> Bi
+    </button>
+    <button class="filter-chip" data-cat="Trans">
+      <span class="flag">🏳️‍⚧️</span> Trans
+    </button>
+  </div>
+</div>
+
+<!-- ============ CONTENEDOR ============ -->
+<div class="container">
+  <div class="video-list" id="videoList">
+    <div class="loading">
+      <div class="spinner"></div>
+      <div>Cargando tus videos...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ TOAST ============ -->
+<div class="toast" id="toast"></div>
+
+<script>
+  const API_URL = window.location.origin + '/api';
+  const token = localStorage.getItem('xvnn_token');
+
+  if (!token) window.location.href = 'auth.html';
+
+  let allVideos = [];
+  let currentFilter = 'all';
+
+  const els = {
+    backBtn: document.getElementById('backBtn'),
+    filtersScroll: document.getElementById('filtersScroll'),
+    videoList: document.getElementById('videoList'),
+    toast: document.getElementById('toast')
+  };
+
+  // ============================================================
+  //  UTILIDADES
+  // ============================================================
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text || '';
+    return div.innerHTML;
+  }
+
+  function formatNumber(n) {
+    if (n >= 1000000) return (n / 1000000).toFixed(1).replace('.0', '') + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1).replace('.0', '') + 'K';
+    return n.toString();
+  }
+
+  let toastTimer;
+  function showToast(msg, type = 'info') {
+    els.toast.textContent = msg;
+    els.toast.className = `toast show ${type}`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => els.toast.classList.remove('show'), 2500);
+  }
+
+  // ============================================================
+  //  CARGAR VIDEOS DEL USUARIO
+  // ============================================================
+  async function loadMyVideos() {
+    try {
+      const res = await fetch(`${API_URL}/videos/mine`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || 'Error al cargar');
+      }
+
+      allVideos = data.videos || [];
+      renderFilteredVideos();
+    } catch (err) {
+      console.error('Error cargando mis videos:', err);
+      els.videoList.innerHTML = `
+        <div class="empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          <h3>Error al cargar</h3>
+          <p>${escapeHtml(err.message)}</p>
+        </div>
+      `;
+    }
+  }
+
+  // ============================================================
+  //  FILTRAR Y RENDERIZAR
+  // ============================================================
+  function renderFilteredVideos() {
+    let videos = allVideos;
+    if (currentFilter !== 'all') {
+      videos = allVideos.filter(v => v.category === currentFilter);
+    }
+
+    if (allVideos.length === 0) {
+      els.videoList.innerHTML = `
+        <div class="empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+            <polygon points="10 8 16 12 10 16 10 8" fill="currentColor"></polygon>
+          </svg>
+          <h3>No has subido videos</h3>
+          <p>Abre el bot de Telegram y envíame un enlace o un archivo .txt con enlaces</p>
+          <a href="https://t.me/xvnn_bot" target="_blank" rel="noopener" class="empty-action">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Abrir el bot
+          </a>
+        </div>
+      `;
+      return;
+    }
+
+    if (videos.length === 0) {
+      els.videoList.innerHTML = `
+        <div class="empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <h3>Sin resultados</h3>
+          <p>No tienes videos en esta categoría</p>
+        </div>
+      `;
+      return;
+    }
+
+    els.videoList.innerHTML = videos.map(v => {
+      const status = v.status || 'ready';
+      const statusText = status === 'ready' ? 'Listo' : status === 'processing' ? 'Procesando' : 'Error';
+
+      return `
+        <div class="video-item" data-id="${v.id}">
+          <div class="video-thumb">
+            <img src="${v.thumb}" alt="" loading="lazy">
+            <div class="status-dot ${status}"></div>
+          </div>
+          <div class="video-info">
+            <div class="video-title">${escapeHtml(v.title)}</div>
+            <div class="video-status-line">
+              <span class="status-badge ${status}">${statusText}</span>
+              <span style="color:var(--text-3)">${v.category}</span>
+            </div>
+            <div class="video-stats">
+              <div class="stat-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                <span class="stat-value">${v.views}</span>
+              </div>
+              <div class="stat-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
+                </svg>
+                <span class="stat-value">${formatNumber(v.likes)}</span>
+              </div>
+              <div class="stat-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path>
+                </svg>
+                <span class="stat-value">${formatNumber(v.dislikes)}</span>
+              </div>
+              <div class="stat-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+                <span class="stat-value">${v.commentsCount || 0}</span>
+              </div>
+            </div>
+          </div>
+          <button class="delete-btn" data-id="${v.id}" title="Eliminar video">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>
+        </div>
+      `;
+    }).join('');
+
+    // Eventos de clic en el video
+    document.querySelectorAll('.video-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('.delete-btn')) return;
+        const id = item.dataset.id;
+        localStorage.setItem('xvnn_current_video', id);
+        window.location.href = `watch.html?id=${id}`;
+      });
+    });
+
+    // Eventos de eliminar
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+
+        const videoId = btn.dataset.id;
+        const videoItem = btn.closest('.video-item');
+        const videoTitle = videoItem.querySelector('.video-title')?.textContent || 'este video';
+
+        if (!confirm(`¿Eliminar "${videoTitle}"?\n\nEsta acción no se puede deshacer.`)) {
+          return;
+        }
+
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+        videoItem.style.opacity = '0.5';
+        videoItem.style.pointerEvents = 'none';
+
+        try {
+          const res = await fetch(`${API_URL}/videos/${videoId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || 'Error al eliminar');
+
+          // Quitar de la lista local
+          allVideos = allVideos.filter(v => v.id !== videoId);
+
+          // Animación de salida
+          videoItem.style.transition = 'all 0.3s ease';
+          videoItem.style.transform = 'translateX(-20px)';
+          videoItem.style.opacity = '0';
+
+          setTimeout(() => {
+            videoItem.remove();
+            showToast('Video eliminado', 'success');
+
+            if (document.querySelectorAll('.video-item').length === 0) {
+              renderFilteredVideos();
+            }
+          }, 300);
+
+        } catch (err) {
+          showToast('Error: ' + err.message, 'error');
+          btn.disabled = false;
+          btn.style.opacity = '1';
+          videoItem.style.opacity = '1';
+          videoItem.style.pointerEvents = '';
+        }
+      });
+    });
+  }
+
+  // ============================================================
+  //  FILTROS
+  // ============================================================
+  els.filtersScroll.addEventListener('click', (e) => {
+    const chip = e.target.closest('.filter-chip');
+    if (!chip) return;
+
+    const cat = chip.dataset.cat;
+    if (cat === currentFilter) return;
+
+    currentFilter = cat;
+
+    // Actualizar chips activos
+    document.querySelectorAll('.filter-chip').forEach(c => {
+      c.classList.toggle('active', c.dataset.cat === cat);
+    });
+
+    renderFilteredVideos();
+  });
+
+  // ============================================================
+  //  BOTÓN VOLVER
+  // ============================================================
+  els.backBtn.addEventListener('click', () => {
+    if (window.history.length > 1 && document.referrer) {
+      try {
+        const refUrl = new URL(document.referrer);
+        const currentUrl = new URL(window.location.href);
+        if (refUrl.origin === currentUrl.origin) {
+          window.history.back();
+          return;
+        }
+      } catch (e) {}
+    }
+    window.location.href = 'web.html';
+  });
+
+  // ============================================================
+  //  INICIALIZACIÓN
+  // ============================================================
+  loadMyVideos();
+</script>
+
+</body>
+</html>
