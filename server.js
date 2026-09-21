@@ -20,9 +20,10 @@ app.set('trust proxy', 1);
 
 // ============ MIDDLEWARES ============
 app.use(cors());
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// ============ RATE LIMITING ============
 app.use('/api/', rateLimit({
   windowMs: CONFIG.rateLimit.global.windowMs,
   max: CONFIG.rateLimit.global.max,
@@ -36,16 +37,16 @@ const authLimiter = rateLimit({
   message: { message: 'Demasiados intentos' }
 });
 
-// Silenciar logs de health checks (evita spam)
+// ============ SILENCIAR HEALTH CHECKS ============
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/health')) req.silent = true;
   next();
 });
 
-// ============ ARCHIVOS ESTÁTICOS ============
+// ============ ESTÁTICOS ============
 app.use('/', express.static(path.join(__dirname, 'public')));
 
-// Redirección de raíz al login
+// ============ REDIRECCIÓN RAIZ ============
 app.get('/', (req, res) => {
   res.redirect('/auth.html');
 });
@@ -55,12 +56,10 @@ app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/videos', videoRoutes);
 
 // ============ HEALTH CHECKS ============
-// Endpoint ligero (para keep-alive interno)
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', time: Date.now() });
 });
 
-// Endpoint completo (para monitoreo)
 app.get('/api/health/full', async (req, res) => {
   try {
     await pool.query('SELECT 1');
@@ -117,26 +116,24 @@ app.use((req, res) => {
 // ============ ERROR HANDLER ============
 app.use((err, req, res, next) => {
   console.error('❌ Error:', err.message);
-  if (err.code === 'LIMIT_FILE_SIZE')
+  if (err.code === 'LIMIT_FILE_SIZE') {
     return res.status(413).json({ message: 'Archivo demasiado grande' });
+  }
   res.status(err.status || 500).json({ message: err.message || 'Error del servidor' });
 });
 
 // ============================================================
 //  KEEP-ALIVE INTERNO
-//  Ping al propio servidor cada 5 minutos para evitar
-//  que Render duerma el Web Service por inactividad.
 // ============================================================
 const KEEP_ALIVE = {
   active: false,
   count: 0,
   lastPing: null,
-  intervalMs: 5 * 60 * 1000,   // 5 minutos
+  intervalMs: 5 * 60 * 1000,
   timer: null
 };
 
 function startKeepAlive() {
-  // Solo en producción y solo en Render
   const isProduction = CONFIG.server.env === 'production';
   const isRender = !!(process.env.RENDER || process.env.RENDER_EXTERNAL_URL);
 
@@ -173,10 +170,7 @@ function startKeepAlive() {
     }
   };
 
-  // Primer ping a los 60 segundos de arrancar
   setTimeout(ping, 60 * 1000);
-
-  // Después cada 5 minutos
   KEEP_ALIVE.timer = setInterval(ping, KEEP_ALIVE.intervalMs);
   KEEP_ALIVE.active = true;
 }
@@ -205,10 +199,7 @@ function stopKeepAlive() {
       console.log('');
     });
 
-    // Arrancar el bot de Telegram
     startTelegramBot();
-
-    // Arrancar el keep-alive
     startKeepAlive();
 
   } catch (err) {
