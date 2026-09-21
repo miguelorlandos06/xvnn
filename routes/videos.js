@@ -13,8 +13,13 @@ router.get('/', async (req, res) => {
     const valid = ['Hetero', 'Gay', 'Bi', 'Trans'];
 
     let sql = `
-      SELECT v.*, u.name AS author_name, u.username AS author_username
-      FROM videos v JOIN users u ON u.id = v.user_id
+      SELECT 
+        v.*, 
+        u.name AS author_name, 
+        u.username AS author_username,
+        (SELECT COUNT(*)::int FROM comments WHERE video_id = v.id) AS comments_count
+      FROM videos v 
+      JOIN users u ON u.id = v.user_id
       WHERE v.processing_status = 'ready'
     `;
     const params = [];
@@ -41,8 +46,13 @@ router.get('/', async (req, res) => {
 router.get('/:id', authOptional, async (req, res) => {
   try {
     const video = await get(`
-      SELECT v.*, u.name AS author_name, u.username AS author_username
-      FROM videos v JOIN users u ON u.id = v.user_id
+      SELECT 
+        v.*, 
+        u.name AS author_name, 
+        u.username AS author_username,
+        (SELECT COUNT(*)::int FROM comments WHERE video_id = v.id) AS comments_count
+      FROM videos v 
+      JOIN users u ON u.id = v.user_id
       WHERE v.id = $1
     `, [req.params.id]);
 
@@ -166,6 +176,95 @@ router.get('/:id/download', async (req, res) => {
   }
 });
 
+// ============ ELIMINAR VIDEO ============
+router.delete('/:id', authRequired, async (req, res) => {
+  try {
+    const video = await get(
+      'SELECT * FROM videos WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.user.id]
+    );
+
+    if (!video) {
+      return res.status(404).json({ message: 'Video no encontrado o no autorizado' });
+    }
+
+    // ============ ELIMINAR DE S3 ============
+    try {
+      const { deleteFile } = await import('../services/s3.js');
+
+      const keysToDelete = [];
+
+      if (video.filename) keysToDelete.push(video.filename);
+      if (video.thumbnail) keysToDelete.push(video.thumbnail);
+
+      if (video.hls_manifest) {
+        try {
+          const hlsBase = video.hls_manifest.replace('/master.m3u8', '');
+          const hlsFiles = await listHLSDirectory(hlsBase);
+          keysToDelete.push(...hlsFiles);
+        } catch (err) {
+          console.warn('No se pudo listar HLS:', err.message);
+        }
+      }
+
+      console.log(`🗑️  Eliminando ${keysToDelete.length} archivos de S3...`);
+
+      const results = await Promise.allSettled(
+        keysToDelete.map(k => deleteFile(k))
+      );
+
+      const failed = results.filter(r => r.status === 'rejected').length;
+      console.log(`✅ Eliminados: ${keysToDelete.length - failed}/${keysToDelete.length}`);
+    } catch (err) {
+      console.error('⚠️  Error eliminando de S3:', err.message);
+    }
+
+    // ============ ELIMINAR DE LA BD ============
+    // ON DELETE CASCADE limpia reacciones, views_log y comentarios
+    await run('DELETE FROM videos WHERE id = $1', [video.id]);
+
+    res.json({
+      message: 'Video eliminado correctamente',
+      deletedFiles: true
+    });
+
+  } catch (err) {
+    console.error('Error eliminando video:', err);
+    if (err.code === '22P02') {
+      return res.status(400).json({ message: 'ID inválido' });
+    }
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+// ============ HELPER: Listar archivos HLS de S3 ============
+async function listHLSDirectory(baseKey) {
+  const files = [];
+  try {
+    const { CONFIG } = await import('../config.js');
+    const baseUrl = CONFIG.s3.baseUrl;
+
+    const res = await fetch(`${baseUrl}?prefix=${baseKey}&list-type=2&max-keys=1000`);
+    if (!res.ok) {
+      console.warn(`S3 list devolvió HTTP ${res.status}`);
+      return files;
+    }
+
+    const xml = await res.text();
+
+    const keyRegex = /<Key>([^<]+)<\/Key>/g;
+    let match;
+    while ((match = keyRegex.exec(xml)) !== null) {
+      files.push(match[1]);
+    }
+
+    console.log(`📂 Encontrados ${files.length} archivos HLS en ${baseKey}`);
+  } catch (err) {
+    console.warn('Error listando HLS:', err.message);
+  }
+  return files;
+}
+
 // ============ SERIALIZADOR ============
 function serializeVideo(v) {
   const useHls = v.video_type === 'hls' && v.hls_manifest && v.processing_status === 'ready';
@@ -181,6 +280,7 @@ function serializeVideo(v) {
     viewsRaw: v.views,
     likes: v.likes,
     dislikes: v.dislikes,
+    commentsCount: v.comments_count || 0,
     size: formatSize(Number(v.size)),
     thumb: publicUrl(v.thumbnail),
     videoUrl: publicUrl(v.filename),
