@@ -199,6 +199,7 @@
     padding: 8px;
     border-radius: 8px;
     transition: background 0.15s ease;
+    position: relative;
   }
 
   .video-item:hover { background: var(--bg-2); }
@@ -224,6 +225,7 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
+    padding-right: 44px;
   }
 
   .video-item-title {
@@ -269,6 +271,53 @@
     color: var(--text-3);
   }
 
+  /* ============ BOTÓN ELIMINAR ============ */
+  .delete-btn {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    transform: translateY(-50%);
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-3);
+    border: none;
+    color: var(--text-3);
+    cursor: pointer;
+    border-radius: 50%;
+    opacity: 0;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+  }
+
+  .video-item:hover .delete-btn {
+    opacity: 1;
+  }
+
+  .delete-btn:hover {
+    background: rgba(229, 9, 20, 0.15);
+    color: var(--red);
+  }
+
+  .delete-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  .delete-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  @media (hover: none) {
+    .delete-btn {
+      opacity: 1;
+    }
+  }
+
+  /* ============ EMPTY ============ */
   .empty {
     text-align: center;
     padding: 60px 20px;
@@ -294,6 +343,7 @@
     line-height: 1.5;
   }
 
+  /* ============ BOTTOM NAV ============ */
   .bottom-nav {
     position: fixed;
     bottom: 0; left: 0; right: 0;
@@ -324,6 +374,38 @@
 
   .nav-item.active { color: var(--text); }
   .nav-item.active svg { color: var(--red); }
+
+  /* ============ TOAST ============ */
+  .toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    padding: 10px 18px;
+    background: var(--bg-3);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 13px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    opacity: 0;
+    transition: all 0.3s ease;
+    pointer-events: none;
+    z-index: 200;
+    max-width: calc(100% - 32px);
+  }
+
+  .toast.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+
+  .toast.success {
+    border-left: 3px solid var(--green);
+  }
+
+  .toast.error {
+    border-left: 3px solid var(--red);
+  }
 </style>
 </head>
 <body>
@@ -397,6 +479,8 @@
   </a>
 </nav>
 
+<div class="toast" id="toast"></div>
+
 <script>
   const API_URL = window.location.origin + '/api';
   const token = localStorage.getItem('xvnn_token');
@@ -411,9 +495,11 @@
     statViews: document.getElementById('statViews'),
     statLikes: document.getElementById('statLikes'),
     videoList: document.getElementById('videoList'),
-    logoutBtn: document.getElementById('logoutBtn')
+    logoutBtn: document.getElementById('logoutBtn'),
+    toast: document.getElementById('toast')
   };
 
+  // ============ UTILIDADES ============
   function formatNumber(n) {
     if (n >= 1000000) return (n / 1000000).toFixed(1).replace('.0', '') + 'M';
     if (n >= 1000) return (n / 1000).toFixed(1).replace('.0', '') + 'K';
@@ -424,6 +510,14 @@
     const div = document.createElement('div');
     div.textContent = text || '';
     return div.innerHTML;
+  }
+
+  let toastTimer;
+  function showToast(msg, type = 'info') {
+    els.toast.textContent = msg;
+    els.toast.className = `toast show ${type}`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => els.toast.classList.remove('show'), 2500);
   }
 
   // ============ CARGAR PERFIL ============
@@ -462,9 +556,11 @@
     } catch (err) {
       console.error(err);
       els.profileName.textContent = 'Error';
+      els.profileUsername.textContent = err.message;
     }
   }
 
+  // ============ RENDERIZAR VIDEOS ============
   function renderVideos(videos) {
     if (!videos.length) {
       els.videoList.innerHTML = `
@@ -495,14 +591,80 @@
               <span>${v.views} vistas · ${v.likes} likes</span>
             </div>
           </div>
+          <button class="delete-btn" data-id="${v.id}" title="Eliminar video">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>
         </div>
       `;
     }).join('');
 
+    // Eventos de video (clic en el item)
     document.querySelectorAll('.video-item').forEach(item => {
-      item.addEventListener('click', () => {
-        localStorage.setItem('xvnn_current_video', item.dataset.id);
-        window.location.href = `watch.html?id=${item.dataset.id}`;
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('.delete-btn')) return;
+        const id = item.dataset.id;
+        localStorage.setItem('xvnn_current_video', id);
+        window.location.href = `watch.html?id=${id}`;
+      });
+    });
+
+    // Eventos de eliminar
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+
+        const videoId = btn.dataset.id;
+        const videoItem = btn.closest('.video-item');
+        const videoTitle = videoItem.querySelector('.video-item-title')?.textContent || 'este video';
+
+        if (!confirm(`¿Eliminar "${videoTitle}"?\n\nEsta acción no se puede deshacer.`)) {
+          return;
+        }
+
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+        videoItem.style.opacity = '0.5';
+        videoItem.style.pointerEvents = 'none';
+
+        try {
+          const res = await fetch(`${API_URL}/videos/${videoId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || 'Error al eliminar');
+
+          // Animación de salida
+          videoItem.style.transition = 'all 0.3s ease';
+          videoItem.style.transform = 'translateX(-20px)';
+          videoItem.style.opacity = '0';
+
+          setTimeout(() => {
+            videoItem.remove();
+            showToast('Video eliminado', 'success');
+
+            // Actualizar contador de videos
+            const current = parseInt(els.statVideos.textContent) || 0;
+            els.statVideos.textContent = Math.max(0, current - 1);
+
+            // Si no quedan videos, mostrar estado vacío
+            if (document.querySelectorAll('.video-item').length === 0) {
+              renderVideos([]);
+            }
+          }, 300);
+
+        } catch (err) {
+          showToast('Error: ' + err.message, 'error');
+          btn.disabled = false;
+          btn.style.opacity = '1';
+          videoItem.style.opacity = '1';
+          videoItem.style.pointerEvents = '';
+        }
       });
     });
   }
@@ -530,13 +692,11 @@
 
     const cat = chip.dataset.cat;
 
-    // Actualizar UI inmediatamente
     document.querySelectorAll('#categoryChips .chip').forEach(c => c.classList.remove('active'));
     chip.classList.add('active');
 
-    // Guardar en backend
     try {
-      await fetch(`${API_URL}/auth/preferences/category`, {
+      const res = await fetch(`${API_URL}/auth/preferences/category`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -544,9 +704,13 @@
         },
         body: JSON.stringify({ category: cat })
       });
-      localStorage.setItem('xvnn_category', cat);
+      if (res.ok) {
+        localStorage.setItem('xvnn_category', cat);
+        showToast('Categoría actualizada', 'success');
+      }
     } catch (err) {
       console.error('Error guardando preferencia:', err);
+      showToast('Error al guardar', 'error');
     }
   });
 
