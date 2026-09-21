@@ -2,6 +2,7 @@
 import jwt from 'jsonwebtoken';
 import { CONFIG } from '../config.js';
 
+// ============ AUTENTICACIÓN OBLIGATORIA ============
 export function authRequired(req, res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
@@ -13,11 +14,13 @@ export function authRequired(req, res, next) {
   try {
     req.user = jwt.verify(token, CONFIG.jwt.secret);
     next();
-  } catch {
+  } catch (err) {
     res.status(401).json({ message: 'Token inválido o expirado' });
   }
 }
 
+// ============ AUTENTICACIÓN OPCIONAL ============
+// Extrae el usuario si hay token válido, pero no bloquea si no hay
 export function authOptional(req, res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
@@ -25,7 +28,7 @@ export function authOptional(req, res, next) {
   if (token) {
     try {
       req.user = jwt.verify(token, CONFIG.jwt.secret);
-    } catch {
+    } catch (err) {
       req.user = null;
     }
   } else {
