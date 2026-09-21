@@ -98,6 +98,22 @@ CREATE TABLE IF NOT EXISTS telegram_sessions (
 CREATE INDEX IF NOT EXISTS idx_telegram_sessions_user
   ON telegram_sessions(xvnn_user_id);
 
+-- ==================== COMENTARIOS ====================
+CREATE TABLE IF NOT EXISTS comments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  video_id UUID NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  content TEXT NOT NULL CHECK (char_length(content) BETWEEN 1 AND 1000),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_comments_video 
+  ON comments(video_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_comments_user 
+  ON comments(user_id);
+
 -- ==================== TRIGGER: contadores ====================
 CREATE OR REPLACE FUNCTION update_video_counts()
 RETURNS TRIGGER AS $$
