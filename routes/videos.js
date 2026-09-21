@@ -7,8 +7,7 @@ import { publicUrl, downloadFile } from '../services/s3.js';
 const router = express.Router();
 
 // ============================================================
-//  ORDEN DE RUTAS (CRÍTICO):
-//  Las rutas específicas (/mine, /recommended) SIEMPRE antes de /:id
+//  ORDEN CRÍTICO: rutas específicas ANTES de /:id
 // ============================================================
 
 // ============ LISTAR VIDEOS ============
@@ -48,7 +47,6 @@ router.get('/', async (req, res) => {
 });
 
 // ============ MIS VIDEOS ============
-// ⚠️ ANTES de /:id
 router.get('/mine', authRequired, async (req, res) => {
   try {
     const videos = await all(`
@@ -70,8 +68,7 @@ router.get('/mine', authRequired, async (req, res) => {
   }
 });
 
-// ============ RECOMENDADOS (POR ESTADÍSTICAS) ============
-// ⚠️ ANTES de /:id
+// ============ RECOMENDADOS ============
 router.get('/recommended', async (req, res) => {
   try {
     const { exclude, limit = 6, category } = req.query;
@@ -250,10 +247,6 @@ router.get('/:id/download', async (req, res) => {
   }
 });
 
-// ============================================================
-//  COMENTARIOS
-// ============================================================
-
 // ============ OBTENER COMENTARIOS ============
 router.get('/:id/comments', async (req, res) => {
   try {
@@ -261,7 +254,6 @@ router.get('/:id/comments', async (req, res) => {
     const lim = Math.min(Number(limit) || 50, 100);
     const off = Number(offset) || 0;
 
-    // Verificar que el video existe
     const video = await get('SELECT id FROM videos WHERE id = $1', [req.params.id]);
     if (!video) return res.status(404).json({ message: 'Video no encontrado' });
 
@@ -315,7 +307,6 @@ router.post('/:id/comments', authRequired, async (req, res) => {
       return res.status(400).json({ message: 'Máximo 1000 caracteres' });
     }
 
-    // Verificar que el video existe
     const video = await get('SELECT id FROM videos WHERE id = $1', [req.params.id]);
     if (!video) return res.status(404).json({ message: 'Video no encontrado' });
 
@@ -325,7 +316,6 @@ router.post('/:id/comments', authRequired, async (req, res) => {
       RETURNING id, content, created_at
     `, [req.params.id, req.user.id, content.trim()]);
 
-    // Obtener info del autor
     const user = await get(
       'SELECT id, name, username, avatar_url FROM users WHERE id = $1',
       [req.user.id]
@@ -375,9 +365,7 @@ router.delete('/:videoId/comments/:commentId', authRequired, async (req, res) =>
   }
 });
 
-// ============================================================
-//  ELIMINAR VIDEO
-// ============================================================
+// ============ ELIMINAR VIDEO ============
 router.delete('/:id', authRequired, async (req, res) => {
   try {
     const video = await get(
@@ -389,12 +377,10 @@ router.delete('/:id', authRequired, async (req, res) => {
       return res.status(404).json({ message: 'Video no encontrado o no autorizado' });
     }
 
-    // Eliminar de S3
     try {
       const { deleteFile } = await import('../services/s3.js');
 
       const keysToDelete = [];
-
       if (video.filename) keysToDelete.push(video.filename);
       if (video.thumbnail) keysToDelete.push(video.thumbnail);
 
@@ -420,13 +406,9 @@ router.delete('/:id', authRequired, async (req, res) => {
       console.error('⚠️  Error eliminando de S3:', err.message);
     }
 
-    // Eliminar de la BD (CASCADE borra reacciones, views_log y comentarios)
     await run('DELETE FROM videos WHERE id = $1', [video.id]);
 
-    res.json({
-      message: 'Video eliminado correctamente',
-      deletedFiles: true
-    });
+    res.json({ message: 'Video eliminado correctamente', deletedFiles: true });
   } catch (err) {
     console.error('Error eliminando video:', err);
     if (err.code === '22P02') {
@@ -444,10 +426,7 @@ async function listHLSDirectory(baseKey) {
     const baseUrl = CONFIG.s3.baseUrl;
 
     const res = await fetch(`${baseUrl}?prefix=${baseKey}&list-type=2&max-keys=1000`);
-    if (!res.ok) {
-      console.warn(`S3 list devolvió HTTP ${res.status}`);
-      return files;
-    }
+    if (!res.ok) return files;
 
     const xml = await res.text();
     const keyRegex = /<Key>([^<]+)<\/Key>/g;
