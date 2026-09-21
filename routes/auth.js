@@ -15,7 +15,7 @@ const router = express.Router();
 // ============================================================
 const avatarUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
     const ok = validTypes.includes(file.mimetype);
@@ -252,14 +252,11 @@ router.post('/avatar', authRequired, (req, res) => {
     }
 
     try {
-      // Generar nombre único
       const ext = req.file.mimetype.split('/')[1].replace('jpeg', 'jpg');
       const filename = `avatars/${req.user.id}/${Date.now()}.${ext}`;
 
-      // Subir a S3
       await uploadFile(filename, req.file.buffer, req.file.mimetype);
 
-      // Guardar en BD
       await run(
         'UPDATE users SET avatar_url = $1 WHERE id = $2',
         [filename, req.user.id]
@@ -290,7 +287,6 @@ router.delete('/avatar', authRequired, async (req, res) => {
       return res.status(400).json({ message: 'No tienes avatar' });
     }
 
-    // Eliminar de S3
     try {
       const { deleteFile } = await import('../services/s3.js');
       await deleteFile(user.avatar_url);
@@ -298,7 +294,6 @@ router.delete('/avatar', authRequired, async (req, res) => {
       console.warn('No se pudo eliminar de S3:', err.message);
     }
 
-    // Eliminar de la BD
     await run('UPDATE users SET avatar_url = NULL WHERE id = $1', [req.user.id]);
 
     res.json({ message: 'Avatar eliminado' });
