@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
   password VARCHAR(255) NOT NULL,
   default_category VARCHAR(20) DEFAULT 'Hetero'
     CHECK (default_category IN ('Hetero','Gay','Bi','Trans')),
+  avatar_url VARCHAR(500),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -21,10 +22,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username_lower
 CREATE INDEX IF NOT EXISTS idx_users_default_category
   ON users(default_category);
 
--- Migración: añadir la columna si la tabla ya existía sin ella
+-- Migración: añadir columnas si la tabla ya existía sin ellas
 ALTER TABLE users
   ADD COLUMN IF NOT EXISTS default_category VARCHAR(20) DEFAULT 'Hetero'
   CHECK (default_category IN ('Hetero','Gay','Bi','Trans'));
+
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(500);
 
 -- ==================== VIDEOS ====================
 CREATE TABLE IF NOT EXISTS videos (
@@ -114,7 +118,7 @@ CREATE INDEX IF NOT EXISTS idx_comments_video
 CREATE INDEX IF NOT EXISTS idx_comments_user 
   ON comments(user_id);
 
--- ==================== TRIGGER: contadores ====================
+-- ==================== TRIGGER: contadores de reacciones ====================
 CREATE OR REPLACE FUNCTION update_video_counts()
 RETURNS TRIGGER AS $$
 BEGIN
