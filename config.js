@@ -20,7 +20,7 @@ export const CONFIG = {
 
   // ============ POSTGRESQL ============
   postgres: {
-    connectionString: 'postgresql://xvnn_c58u_user:9aSM21EYmCO8F274H7E1WppKUkLQLC5H@dpg-dam1kqnqj5pc73bgkvq0-a/xvnn_c58u',
+    connectionString: 'postgresql://xvnn_o0m1_user:5tdtAS98bPCS5FnIOuLZXi2tLpLv8ZUw@dpg-dap7n880cd8s73c1p7ug-a/xvnn_o0m1',
     ssl: { rejectUnauthorized: false },
     host: 'localhost',
     port: 5432,
