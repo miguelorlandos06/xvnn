@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>XVNN</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --bg: #0a0a0a;
+    --bg-2: #141414;
+    --bg-3: #1c1c1c;
+    --border: #1f1f1f;
+    --text: #f5f5f5;
+    --text-2: #a0a0a0;
+    --text-3: #666666;
+    --primary: #e50914;
+    --green: #2ecc71;
+    --header-h: 56px;
+    --panel-width: 280px;
+  }
+
+  html, body {
+    min-height: 100%;
+    font-family: 'Poppins', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body.no-scroll {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+  }
+
+  /* ============ HEADER ============ */
+  .top-header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: var(--header-h);
+    background: rgba(10,10,10,0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 12px;
+    z-index: 90;
+  }
+
+  .icon-btn {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    cursor: pointer;
+    border-radius: 50%;
+    flex-shrink: 0;
+    transition: background 0.15s ease;
+  }
+
+  .icon-btn:hover {
+    background: var(--bg-3);
+  }
+
+  .icon-btn svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .brand {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    flex-shrink: 0;
+  }
+
+  .brand span {
+    color: var(--primary);
+  }
+
+  .search-form {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 0 14px;
+    height: 38px;
+    transition: border-color 0.2s ease;
+  }
+
+  .search-form:focus-within {
+    border-color: var(--primary);
+  }
+
+  .search-form svg {
+    width: 16px;
+    height: 16px;
+    color: var(--text-3);
+    flex-shrink: 0;
+  }
+
+  .search-form input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 400;
+  }
+
+  .search-form input::placeholder {
+    color: var(--text-3);
+    font-weight: 300;
+  }
+
+  /* ============ CATEGORÍAS ============ */
+  .categories-bar {
+    position: fixed;
+    top: var(--header-h);
+    left: 0; right: 0;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    z-index: 85;
+    padding: 10px 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .categories-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .categories-scroll {
+    display: flex;
+    gap: 8px;
+    padding: 0 12px;
+  }
+
+  .category-chip {
+    padding: 7px 16px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    color: var(--text-2);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+  }
+
+  .category-chip:hover {
+    color: var(--text);
+    border-color: var(--text-3);
+  }
+
+  .category-chip.active {
+    background: var(--text);
+    border-color: var(--text);
+    color: var(--bg);
+  }
+
+  /* ============ OVERLAY ============ */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 98;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+  }
+
+  .overlay.open {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  /* ============ PANEL LATERAL ============ */
+  .side-panel {
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    width: var(--panel-width);
+    max-width: 85vw;
+    background: var(--bg-2);
+    z-index: 99;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+  }
+
+  .side-panel.open {
+    transform: translateX(0);
+  }
+
+  .panel-profile {
+    padding: 32px 20px 24px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel-avatar {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    background: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: 600;
+    color: #fff;
+    margin: 0 auto 14px;
+    overflow: hidden;
+    text-transform: uppercase;
+  }
+
+  .panel-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .panel-name {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .panel-username {
+    font-size: 12px;
+    color: var(--text-3);
+    font-weight: 400;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .panel-menu {
+    padding: 12px 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .menu-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 20px;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 400;
+    cursor: pointer;
+    text-align: left;
+    text-decoration: none;
+    transition: background 0.15s ease;
+  }
+
+  .menu-item:hover {
+    background: var(--bg-3);
+  }
+
+  .menu-item svg {
+    width: 18px;
+    height: 18px;
+    color: var(--text-2);
+    flex-shrink: 0;
+  }
+
+  .menu-item.logout {
+    color: var(--primary);
+    margin-top: auto;
+    border-top: 1px solid var(--border);
+  }
+
+  .menu-item.logout svg {
+    color: var(--primary);
+  }
+
+  /* ============ GRID ============ */
+  .videos-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    padding: calc(var(--header-h) + 70px) 12px 32px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .video-card {
+    background: transparent;
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    animation: cardIn 0.4s ease backwards;
+  }
+
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .video-card:active {
+    transform: scale(0.97);
+  }
+
+  @media (hover: hover) {
+    .video-card:hover {
+      transform: translateY(-2px);
+    }
+  }
+
+  .thumb-wrapper {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    background: var(--bg-3);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 10px;
+  }
+
+  .thumb-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.4s ease;
+  }
+
+  .video-card:hover .thumb-wrapper img {
+    transform: scale(1.03);
+  }
+
+  .duration-badge {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    padding: 3px 7px;
+    background: rgba(0,0,0,0.8);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #fff;
+    letter-spacing: 0.3px;
+  }
+
+  .video-info {
+    padding: 0 2px;
+  }
+
+  .video-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1.4;
+    margin-bottom: 4px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .video-meta {
+    font-size: 11px;
+    color: var(--text-3);
+    font-weight: 400;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .video-meta .dot {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: var(--text-3);
+  }
+
+  /* ============ EMPTY ============ */
+  .empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--text-3);
+  }
+
+  .empty svg {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 16px;
+    opacity: 0.3;
+  }
+
+  .empty h3 {
+    font-size: 15px;
+    font-weight: 500;
+    margin-bottom: 6px;
+    color: var(--text-2);
+  }
+
+  .empty p {
+    font-size: 12px;
+    font-weight: 300;
+  }
+
+  /* ============ LOADING ============ */
+  .loading {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-3);
+  }
+
+  .spinner {
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    border: 2px solid rgba(255,255,255,0.1);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* ============ RESPONSIVE ============ */
+  @media (min-width: 640px) {
+    .videos-grid {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+  }
+
+  @media (min-width: 900px) {
+    .videos-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
+  @media (min-width: 1200px) {
+    .videos-grid {
+      grid-template-columns: repeat(5, 1fr);
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ HEADER ============ -->
+<header class="top-header">
+  <button class="icon-btn" id="hamburgerBtn" aria-label="Menú">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </button>
+
+  <div class="brand">XV<span>NN</span></div>
+
+  <form class="search-form" id="searchForm">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"></circle>
+      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+    </svg>
+    <input type="text" id="searchInput" placeholder="Buscar videos" autocomplete="off">
+  </form>
+
+  <button class="icon-btn" id="favoritesBtn" aria-label="Favoritos">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+    </svg>
+  </button>
+</header>
+
+<!-- ============ CATEGORÍAS ============ -->
+<div class="categories-bar">
+  <div class="categories-scroll" id="categoriesScroll">
+    <button class="category-chip active" data-category="Hetero">Hetero</button>
+    <button class="category-chip" data-category="Gay">Gay</button>
+    <button class="category-chip" data-category="Bi">Bi</button>
+    <button class="category-chip" data-category="Trans">Trans</button>
+  </div>
+</div>
+
+<!-- ============ OVERLAY ============ -->
+<div class="overlay" id="overlay"></div>
+
+<!-- ============ PANEL LATERAL ============ -->
+<aside class="side-panel" id="sidePanel">
+  <div class="panel-profile">
+    <div class="panel-avatar" id="panelAvatar">?</div>
+    <div class="panel-name" id="panelName">Cargando...</div>
+    <div class="panel-username" id="panelUsername">@usuario</div>
+  </div>
+
+  <div class="panel-menu">
+    <a href="profile.html" class="menu-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+        <circle cx="12" cy="7" r="4"></circle>
+      </svg>
+      <span>Mi perfil</span>
+    </a>
+
+    <a href="my-videos.html" class="menu-item">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+        <polygon points="10 8 16 12 10 16 10 8" fill="currentColor"></polygon>
+      </svg>
+      <span>Mis videos</span>
+    </a>
+
+    <button class="menu-item" id="menuFavorites">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+      </svg>
+      <span>Favoritos</span>
+    </button>
+
+    <button class="menu-item" id="menuHistory">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <polyline points="12 6 12 12 16 14"></polyline>
+      </svg>
+      <span>Historial</span>
+    </button>
+
+    <button class="menu-item logout" id="logoutBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+        <polyline points="16 17 21 12 16 7"></polyline>
+        <line x1="21" y1="12" x2="9" y2="12"></line>
+      </svg>
+      <span>Cerrar sesión</span>
+    </button>
+  </div>
+</aside>
+
+<!-- ============ GRID ============ -->
+<main class="videos-grid" id="videosGrid">
+  <div class="loading">
+    <div class="spinner"></div>
+  </div>
+</main>
+
+<script>
+  // ============================================================
+  //  CONFIG
+  // ============================================================
+  const API_URL = window.location.origin + '/api';
+  const token = localStorage.getItem('xvnn_token');
+
+  if (!token) {
+    window.location.href = 'auth.html';
+  }
+
+  // ============================================================
+  //  ESTADO
+  // ============================================================
+  let currentCategory = localStorage.getItem('xvnn_category') || 'Hetero';
+  let currentMode = 'category'; // 'category' | 'search' | 'favorites' | 'history'
+  let searchQuery = '';
+
+  // ============================================================
+  //  ELEMENTOS
+  // ============================================================
+  const els = {
+    hamburgerBtn: document.getElementById('hamburgerBtn'),
+    favoritesBtn: document.getElementById('favoritesBtn'),
+    searchForm: document.getElementById('searchForm'),
+    searchInput: document.getElementById('searchInput'),
+    overlay: document.getElementById('overlay'),
+    sidePanel: document.getElementById('sidePanel'),
+    panelAvatar: document.getElementById('panelAvatar'),
+    panelName: document.getElementById('panelName'),
+    panelUsername: document.getElementById('panelUsername'),
+    categoriesScroll: document.getElementById('categoriesScroll'),
+    videosGrid: document.getElementById('videosGrid'),
+    menuFavorites: document.getElementById('menuFavorites'),
+    menuHistory: document.getElementById('menuHistory'),
+    logoutBtn: document.getElementById('logoutBtn')
+  };
+
+  // ============================================================
+  //  PANEL LATERAL
+  // ============================================================
+  function openPanel() {
+    els.sidePanel.classList.add('open');
+    els.overlay.classList.add('open');
+    document.body.classList.add('no-scroll');
+  }
+
+  function closePanel() {
+    els.sidePanel.classList.remove('open');
+    els.overlay.classList.remove('open');
+    document.body.classList.remove('no-scroll');
+  }
+
+  els.hamburgerBtn.addEventListener('click', openPanel);
+  els.overlay.addEventListener('click', closePanel);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closePanel();
+  });
+
+  // ============================================================
+  //  CARGAR PERFIL
+  // ============================================================
+  async function loadProfile() {
+    try {
+      const res = await fetch(`${API_URL}/auth/me`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+
+      if (res.ok && data.user) {
+        const user = data.user;
+        const initial = (user.name || user.username || '?').charAt(0).toUpperCase();
+
+        if (user.avatarUrl) {
+          els.panelAvatar.innerHTML = `<img src="${user.avatarUrl}" alt="">`;
+        } else {
+          els.panelAvatar.textContent = initial;
+        }
+
+        els.panelName.textContent = user.name || user.username;
+        els.panelUsername.textContent = '@' + user.username;
+
+        // Actualizar categoría por defecto
+        if (user.defaultCategory && !localStorage.getItem('xvnn_category')) {
+          currentCategory = user.defaultCategory;
+          updateActiveCategory();
+        }
+      }
+    } catch (err) {
+      console.warn('Error cargando perfil:', err);
+    }
+  }
+
+  // ============================================================
+  //  CATEGORÍAS
+  // ============================================================
+  function updateActiveCategory() {
+    document.querySelectorAll('.category-chip').forEach(chip => {
+      chip.classList.toggle('active', chip.dataset.category === currentCategory);
+    });
+  }
+
+  els.categoriesScroll.addEventListener('click', async (e) => {
+    const chip = e.target.closest('.category-chip');
+    if (!chip) return;
+
+    const category = chip.dataset.category;
+    if (category === currentCategory && currentMode === 'category') return;
+
+    currentCategory = category;
+    currentMode = 'category';
+    localStorage.setItem('xvnn_category', category);
+    updateActiveCategory();
+
+    // Guardar preferencia en el backend
+    fetch(`${API_URL}/auth/preferences/category`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ category })
+    }).catch(() => {});
+
+    renderVideos();
+  });
+
+  // ============================================================
+  //  BÚSQUEDA
+  // ============================================================
+  let searchTimeout;
+
+  els.searchForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    performSearch();
+  });
+
+  els.searchInput.addEventListener('input', () => {
+    clearTimeout(searchTimeout);
+    const query = els.searchInput.value.trim();
+
+    if (query.length === 0) {
+      currentMode = 'category';
+      renderVideos();
+      return;
+    }
+
+    searchTimeout = setTimeout(() => {
+      performSearch();
+    }, 400);
+  });
+
+  function performSearch() {
+    const query = els.searchInput.value.trim();
+    if (query.length < 2) return;
+
+    searchQuery = query;
+    currentMode = 'search';
+    renderVideos();
+  }
+
+  // ============================================================
+  //  FAVORITOS E HISTORIAL
+  // ============================================================
+  els.favoritesBtn.addEventListener('click', () => {
+    currentMode = 'favorites';
+    closePanel();
+    renderVideos();
+  });
+
+  els.menuFavorites.addEventListener('click', () => {
+    currentMode = 'favorites';
+    closePanel();
+    renderVideos();
+  });
+
+  els.menuHistory.addEventListener('click', () => {
+    currentMode = 'history';
+    closePanel();
+    renderVideos();
+  });
+
+  // ============================================================
+  //  LOGOUT
+  // ============================================================
+  els.logoutBtn.addEventListener('click', () => {
+    if (!confirm('¿Cerrar sesión?')) return;
+    localStorage.removeItem('xvnn_token');
+    localStorage.removeItem('xvnn_user');
+    localStorage.removeItem('xvnn_category');
+    window.location.href = 'auth.html';
+  });
+
+  // ============================================================
+  //  RENDER VIDEOS
+  // ============================================================
+  async function renderVideos() {
+    els.videosGrid.innerHTML = `
+      <div class="loading">
+        <div class="spinner"></div>
+      </div>
+    `;
+
+    try {
+      let url;
+      const headers = {};
+
+      switch (currentMode) {
+        case 'search':
+          url = `${API_URL}/videos/search?q=${encodeURIComponent(searchQuery)}`;
+          break;
+
+        case 'favorites':
+          url = `${API_URL}/videos/favorites`;
+          headers['Authorization'] = `Bearer ${token}`;
+          break;
+
+        case 'history':
+          url = `${API_URL}/videos/history`;
+          headers['Authorization'] = `Bearer ${token}`;
+          break;
+
+        default:
+          url = `${API_URL}/videos?category=${currentCategory}`;
+      }
+
+      const res = await fetch(url, { headers });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || 'Error cargando videos');
+      }
+
+      const videos = data.videos || [];
+
+      if (videos.length === 0) {
+        renderEmpty();
+        return;
+      }
+
+      els.videosGrid.innerHTML = videos.map((video, i) => `
+        <article class="video-card" data-id="${video.id}" style="animation-delay: ${i * 0.03}s">
+          <div class="thumb-wrapper">
+            <img src="${video.thumb}" alt="" loading="lazy">
+            <span class="duration-badge">${video.duration}</span>
+          </div>
+          <div class="video-info">
+            <h3 class="video-title">${escapeHtml(video.title)}</h3>
+            <div class="video-meta">
+              <span>${video.views} vistas</span>
+              <span class="dot"></span>
+              <span>${video.likes} likes</span>
+            </div>
+          </div>
+        </article>
+      `).join('');
+
+      // Click en cards
+      document.querySelectorAll('.video-card').forEach(card => {
+        card.addEventListener('click', () => {
+          const id = card.dataset.id;
+          localStorage.setItem('xvnn_current_video', id);
+          window.location.href = `watch.html?id=${id}`;
+        });
+      });
+
+    } catch (err) {
+      console.error('Error renderVideos:', err);
+      els.videosGrid.innerHTML = `
+        <div class="empty">
+          <h3>Error cargando videos</h3>
+          <p>${escapeHtml(err.message)}</p>
+        </div>
+      `;
+    }
+  }
+
+  // ============================================================
+  //  EMPTY STATE
+  // ============================================================
+  function renderEmpty() {
+    let title, description;
+
+    switch (currentMode) {
+      case 'search':
+        title = 'Sin resultados';
+        description = `No hay videos para "${escapeHtml(searchQuery)}"`;
+        break;
+
+      case 'favorites':
+        title = 'Sin favoritos';
+        description = 'Guarda videos con el corazón para verlos aquí';
+        break;
+
+      case 'history':
+        title = 'Sin historial';
+        description = 'Los videos que veas aparecerán aquí';
+        break;
+
+      default:
+        title = 'Sin videos';
+        description = `No hay videos en ${currentCategory}`;
+    }
+
+    els.videosGrid.innerHTML = `
+      <div class="empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+          <polygon points="10 8 16 12 10 16 10 8" fill="currentColor"></polygon>
+        </svg>
+        <h3>${title}</h3>
+        <p>${description}</p>
+      </div>
+    `;
+  }
+
+  // ============================================================
+  //  UTILS
+  // ============================================================
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text || '';
+    return div.innerHTML;
+  }
+
+  // ============================================================
+  //  INICIALIZACIÓN
+  // ============================================================
+  (async () => {
+    updateActiveCategory();
+    await loadProfile();
+    renderVideos();
+  })();
+</script>
+
+</body>
+</html>

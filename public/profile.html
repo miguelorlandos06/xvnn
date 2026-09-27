@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>XVNN · Mi perfil</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --bg: #0a0a0a; --bg-2: #141414; --bg-3: #1c1c1c;
+    --border: #1f1f1f; --text: #f5f5f5; --text-2: #a0a0a0;
+    --text-3: #666666; --primary: #e50914; --green: #2ecc71;
+  }
+  html, body { min-height: 100%; font-family: 'Poppins', sans-serif; background: var(--bg); color: var(--text); overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+
+  .top-header {
+    position: fixed; top: 0; left: 0; right: 0; height: 52px;
+    background: rgba(10,10,10,0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px; padding: 0 12px; z-index: 90;
+  }
+  .icon-btn { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; color: var(--text); cursor: pointer; border-radius: 50%; flex-shrink: 0; transition: background 0.15s ease; }
+  .icon-btn:hover { background: var(--bg-3); }
+  .icon-btn svg { width: 20px; height: 20px; }
+  .header-title { flex: 1; text-align: center; font-size: 15px; font-weight: 600; letter-spacing: 1px; }
+
+  .container { max-width: 700px; margin: 0 auto; padding: 76px 16px 60px; }
+
+  /* Perfil */
+  .profile-hero { text-align: center; margin-bottom: 32px; }
+  .profile-avatar {
+    width: 96px; height: 96px; border-radius: 50%; background: var(--primary);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 36px; font-weight: 600; color: #fff;
+    margin: 0 auto 16px; overflow: hidden; text-transform: uppercase;
+    border: 2px solid var(--border);
+  }
+  .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .profile-name { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+  .profile-username { font-size: 13px; color: var(--text-3); margin-bottom: 12px; }
+  .profile-bio { font-size: 13px; color: var(--text-2); line-height: 1.5; max-width: 400px; margin: 0 auto 16px; white-space: pre-wrap; }
+  .edit-profile-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 18px; background: transparent;
+    border: 1px solid var(--border); border-radius: 20px;
+    color: var(--text); font-family: inherit; font-size: 13px; font-weight: 500;
+    text-decoration: none; cursor: pointer; transition: all 0.2s ease;
+  }
+  .edit-profile-btn:hover { border-color: var(--text-3); }
+  .edit-profile-btn svg { width: 14px; height: 14px; }
+
+  /* Stats */
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 32px;
+  }
+  .stat-card {
+    padding: 16px 8px; background: var(--bg-2); border-radius: 10px; text-align: center;
+  }
+  .stat-value { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
+  .stat-label { font-size: 10px; color: var(--text-3); text-transform: uppercase; letter-spacing: 1px; font-weight: 500; }
+
+  /* Secciones */
+  .section { margin-bottom: 32px; }
+  .section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .section-title { font-size: 13px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--text-2); }
+  .section-link {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 12px; color: var(--primary); text-decoration: none; font-weight: 500;
+  }
+  .section-link svg { width: 12px; height: 12px; }
+
+  /* Tabs internos */
+  .tabs {
+    display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    padding: 7px 14px; background: transparent; border: 1px solid var(--border);
+    border-radius: 18px; color: var(--text-3); font-family: inherit;
+    font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap; transition: all 0.2s ease;
+  }
+  .tab.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+  /* Lista de videos */
+  .video-list { display: flex; flex-direction: column; gap: 8px; }
+  .video-item {
+    display: flex; gap: 12px; padding: 10px; background: var(--bg-2);
+    border-radius: 10px; cursor: pointer; transition: background 0.15s ease;
+    position: relative;
+  }
+  .video-item:hover { background: var(--bg-3); }
+  .video-thumb {
+    width: 100px; aspect-ratio: 16 / 9; background: var(--bg-3);
+    border-radius: 8px; overflow: hidden; flex-shrink: 0;
+  }
+  .video-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .video-info { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+  .video-item-title {
+    font-size: 13px; font-weight: 500; line-height: 1.35; margin-bottom: 5px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .video-item-meta { font-size: 11px; color: var(--text-3); display: flex; gap: 10px; flex-wrap: wrap; }
+
+  /* Empty */
+  .empty {
+    text-align: center; padding: 40px 20px; color: var(--text-3);
+    font-size: 13px; line-height: 1.5;
+  }
+  .empty svg { width: 40px; height: 40px; margin-bottom: 12px; opacity: 0.3; }
+  .empty h3 { font-size: 14px; font-weight: 500; color: var(--text-2); margin-bottom: 6px; }
+  .empty p { font-size: 12px; }
+
+  /* Loading */
+  .loading { text-align: center; padding: 40px; }
+  .spinner {
+    display: inline-block; width: 24px; height: 24px;
+    border: 2px solid rgba(255,255,255,0.1); border-top-color: var(--primary);
+    border-radius: 50%; animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(100px);
+    padding: 12px 20px; background: var(--bg-2); border: 1px solid var(--border);
+    border-radius: 10px; color: var(--text); font-size: 13px; font-weight: 500;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+    opacity: 0; transition: all 0.3s ease; pointer-events: none; z-index: 200;
+    max-width: calc(100% - 32px);
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+  /* Bottom nav */
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0; height: 64px;
+    background: rgba(10,10,10,0.96); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-around;
+    padding: 0 8px 6px; z-index: 90;
+  }
+  .nav-item {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px; padding: 6px; background: transparent; border: none;
+    color: var(--text-3); font-family: inherit; font-size: 10px; font-weight: 500;
+    text-decoration: none; transition: color 0.2s ease;
+  }
+  .nav-item svg { width: 22px; height: 22px; }
+  .nav-item.active { color: var(--primary); }
+</style>
+</head>
+<body>
+
+<header class="top-header">
+  <button class="icon-btn" id="backBtn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="19" y1="12" x2="5" y2="12"></line>
+      <polyline points="12 19 5 12 12 5"></polyline>
+    </svg>
+  </button>
+  <div class="header-title">MI PERFIL</div>
+  <button class="icon-btn" id="shareBtn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="18" cy="5" r="3"></circle>
+      <circle cx="6" cy="12" r="3"></circle>
+      <circle cx="18" cy="19" r="3"></circle>
+      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+    </svg>
+  </button>
+</header>
+
+<div class="container">
+  <div class="profile-hero">
+    <div class="profile-avatar" id="profileAvatar">?</div>
+    <div class="profile-name" id="profileName">Cargando...</div>
+    <div class="profile-username" id="profileUsername">@usuario</div>
+    <div class="profile-bio" id="profileBio" style="display: none;"></div>
+    <a href="edit-profile.html" class="edit-profile-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+      </svg>
+      Editar perfil
+    </a>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-value" id="statVideos">0</div>
+      <div class="stat-label">Videos</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statViews">0</div>
+      <div class="stat-label">Vistas</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statLikes">0</div>
+      <div class="stat-label">Likes</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">Mis videos</div>
+      <a href="my-videos.html" class="section-link">
+        Ver todos
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </a>
+    </div>
+    <div class="video-list" id="myVideosList">
+      <div class="loading"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">Favoritos</div>
+    </div>
+    <div class="video-list" id="favoritesList">
+      <div class="loading"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">Historial</div>
+    </div>
+    <div class="video-list" id="historyList">
+      <div class="loading"><div class="spinner"></div></div>
+    </div>
+  </div>
+</div>
+
+<nav class="bottom-nav">
+  <a href="web.html" class="nav-item">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+      <polyline points="9 22 9 12 15 12 15 22"></polyline>
+    </svg>
+    <span>Inicio</span>
+  </a>
+  <a href="my-videos.html" class="nav-item">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+      <polygon points="10 8 16 12 10 16 10 8" fill="currentColor"></polygon>
+    </svg>
+    <span>Mis videos</span>
+  </a>
+  <a href="profile.html" class="nav-item active">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+      <circle cx="12" cy="7" r="4"></circle>
+    </svg>
+    <span>Perfil</span>
+  </a>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const API_URL = window.location.origin + '/api';
+  const token = localStorage.getItem('xvnn_token');
+  if (!token) window.location.href = 'auth.html';
+
+  const els = {
+    backBtn: document.getElementById('backBtn'),
+    shareBtn: document.getElementById('shareBtn'),
+    avatar: document.getElementById('profileAvatar'),
+    name: document.getElementById('profileName'),
+    username: document.getElementById('profileUsername'),
+    bio: document.getElementById('profileBio'),
+    statVideos: document.getElementById('statVideos'),
+    statViews: document.getElementById('statViews'),
+    statLikes: document.getElementById('statLikes'),
+    myVideosList: document.getElementById('myVideosList'),
+    favoritesList: document.getElementById('favoritesList'),
+    historyList: document.getElementById('historyList'),
+    toast: document.getElementById('toast')
+  };
+
+  function escapeHtml(t) {
+    const d = document.createElement('div');
+    d.textContent = t || '';
+    return d.innerHTML;
+  }
+
+  function formatNumber(n) {
+    if (n >= 1000000) return (n / 1000000).toFixed(1).replace('.0', '') + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1).replace('.0', '') + 'K';
+    return n.toString();
+  }
+
+  let toastTimer;
+  function showToast(msg) {
+    els.toast.textContent = msg;
+    els.toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => els.toast.classList.remove('show'), 2500);
+  }
+
+  async function loadProfile() {
+    try {
+      const headers = { 'Authorization': `Bearer ${token}` };
+
+      const [meRes, videosRes, favRes, histRes] = await Promise.all([
+        fetch(`${API_URL}/auth/me`, { headers }),
+        fetch(`${API_URL}/videos/mine`, { headers }),
+        fetch(`${API_URL}/videos/favorites`, { headers }),
+        fetch(`${API_URL}/videos/history`, { headers })
+      ]);
+
+      const me = await meRes.json();
+      const videosData = await videosRes.json();
+      const favData = await favRes.json();
+      const histData = await histRes.json();
+
+      if (!meRes.ok) throw new Error(me.message);
+
+      const user = me.user;
+      const initial = (user.name || user.username || '?').charAt(0).toUpperCase();
+
+      if (user.avatarUrl) {
+        els.avatar.innerHTML = `<img src="${user.avatarUrl}" alt="">`;
+      } else {
+        els.avatar.textContent = initial;
+      }
+
+      els.name.textContent = user.name || user.username;
+      els.username.textContent = '@' + user.username;
+
+      if (user.bio && user.bio.trim()) {
+        els.bio.textContent = user.bio;
+        els.bio.style.display = 'block';
+      }
+
+      // Stats
+      const myVideos = videosData.videos || [];
+      const totalViews = myVideos.reduce((s, v) => s + (v.viewsRaw || 0), 0);
+      const totalLikes = myVideos.reduce((s, v) => s + (v.likes || 0), 0);
+
+      els.statVideos.textContent = formatNumber(myVideos.length);
+      els.statViews.textContent = formatNumber(totalViews);
+      els.statLikes.textContent = formatNumber(totalLikes);
+
+      // Render previews (máximo 3)
+      renderPreview(els.myVideosList, myVideos.slice(0, 3), 'No has subido videos aún');
+      renderPreview(els.favoritesList, (favData.videos || []).slice(0, 3), 'No tienes favoritos');
+      renderPreview(els.historyList, (histData.videos || []).slice(0, 3), 'Sin historial');
+
+    } catch (err) {
+      console.error(err);
+      els.name.textContent = 'Error';
+    }
+  }
+
+  function renderPreview(container, videos, emptyMsg) {
+    if (!videos || videos.length === 0) {
+      container.innerHTML = `<div class="empty"><p>${emptyMsg}</p></div>`;
+      return;
+    }
+
+    container.innerHTML = videos.map(v => `
+      <div class="video-item" data-id="${v.id}">
+        <div class="video-thumb">
+          <img src="${v.thumb}" alt="" loading="lazy">
+        </div>
+        <div class="video-info">
+          <div class="video-item-title">${escapeHtml(v.title)}</div>
+          <div class="video-item-meta">
+            <span>${v.views} vistas</span>
+            <span>${v.likes} likes</span>
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+    container.querySelectorAll('.video-item').forEach(item => {
+      item.addEventListener('click', () => {
+        localStorage.setItem('xvnn_current_video', item.dataset.id);
+        window.location.href = `watch.html?id=${item.dataset.id}`;
+      });
+    });
+  }
+
+  els.backBtn.addEventListener('click', () => {
+    if (window.history.length > 1) window.history.back();
+    else window.location.href = 'web.html';
+  });
+
+  els.shareBtn.addEventListener('click', async () => {
+    const username = els.username.textContent.replace('@', '');
+    const url = `${window.location.origin}/profile.html`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Mi perfil en XVNN', text: `Mira mi perfil @${username}`, url });
+      } catch {}
+    } else {
+      try {
+        await navigator.clipboard.writeText(url);
+        showToast('Enlace copiado');
+      } catch {}
+    }
+  });
+
+  loadProfile();
+</script>
+
+</body>
+</html>

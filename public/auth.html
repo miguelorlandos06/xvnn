@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XVNN</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --bg: #0a0a0a;
+    --bg-2: #141414;
+    --bg-3: #1c1c1c;
+    --border: #1f1f1f;
+    --text: #f5f5f5;
+    --text-2: #a0a0a0;
+    --text-3: #666666;
+    --primary: #e50914;
+    --green: #2ecc71;
+  }
+
+  html, body {
+    min-height: 100%;
+    font-family: 'Poppins', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px 20px;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 380px;
+  }
+
+  /* ============ LOGO ============ */
+  .logo {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+
+  .logo h1 {
+    font-size: 42px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .logo h1 span {
+    color: var(--primary);
+  }
+
+  .logo p {
+    font-size: 11px;
+    color: var(--text-3);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-top: 12px;
+    font-weight: 300;
+  }
+
+  /* ============ TABS ============ */
+  .tabs {
+    display: flex;
+    margin-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tab {
+    flex: 1;
+    padding: 12px 4px;
+    background: transparent;
+    border: none;
+    color: var(--text-3);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    position: relative;
+    transition: color 0.2s ease;
+  }
+
+  .tab.active {
+    color: var(--text);
+  }
+
+  .tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--primary);
+  }
+
+  /* ============ FORM ============ */
+  .form-group {
+    margin-bottom: 22px;
+  }
+
+  .form-group label {
+    display: block;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-3);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .input-wrapper {
+    position: relative;
+  }
+
+  .input-wrapper input {
+    width: 100%;
+    padding: 12px 0;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 400;
+    outline: none;
+    transition: border-color 0.2s ease;
+  }
+
+  .input-wrapper input::placeholder {
+    color: var(--text-3);
+    font-weight: 300;
+  }
+
+  .input-wrapper input:focus {
+    border-color: var(--primary);
+  }
+
+  /* Toggle password */
+  .toggle-password {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: var(--text-3);
+    cursor: pointer;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s ease;
+  }
+
+  .toggle-password:hover {
+    color: var(--text);
+  }
+
+  .toggle-password svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* ============ BOTÓN ============ */
+  .btn-primary {
+    width: 100%;
+    padding: 14px;
+    background: var(--primary);
+    border: none;
+    border-radius: 8px;
+    color: var(--white, #fff);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: all 0.2s ease;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    opacity: 0.9;
+  }
+
+  .btn-primary:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* ============ MENSAJE ============ */
+  .message {
+    display: none;
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    margin-bottom: 24px;
+    font-weight: 500;
+    line-height: 1.5;
+  }
+
+  .message.error {
+    display: block;
+    background: rgba(229, 9, 20, 0.08);
+    border: 1px solid rgba(229, 9, 20, 0.2);
+    color: #ff6b6b;
+  }
+
+  .message.success {
+    display: block;
+    background: rgba(46, 204, 113, 0.08);
+    border: 1px solid rgba(46, 204, 113, 0.2);
+    color: var(--green);
+  }
+
+  /* ============ SPINNER ============ */
+  .spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* ============ FOOTER ============ */
+  .footer {
+    text-align: center;
+    margin-top: 40px;
+    font-size: 11px;
+    color: var(--text-3);
+    line-height: 1.6;
+    font-weight: 300;
+  }
+
+  .footer a {
+    color: var(--text-2);
+    text-decoration: none;
+    transition: color 0.2s ease;
+  }
+
+  .footer a:hover {
+    color: var(--text);
+  }
+
+  /* ============ ANIMACIONES ============ */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .form-group, .btn-primary {
+    animation: fadeIn 0.4s ease backwards;
+  }
+
+  .form-group:nth-child(1) { animation-delay: 0.05s; }
+  .form-group:nth-child(2) { animation-delay: 0.1s; }
+  .form-group:nth-child(3) { animation-delay: 0.15s; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="logo">
+    <h1>XV<span>NN</span></h1>
+    <p>Plataforma de videos</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="login">Iniciar sesión</button>
+    <button class="tab" data-tab="register">Registro</button>
+  </div>
+
+  <div class="message" id="message"></div>
+
+  <form id="authForm" autocomplete="off">
+    <div class="form-group" id="nameGroup" style="display: none;">
+      <label for="name">Nombre</label>
+      <div class="input-wrapper">
+        <input type="text" id="name" placeholder="Tu nombre" autocomplete="name">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="username">Usuario</label>
+      <div class="input-wrapper">
+        <input type="text" id="username" placeholder="Tu usuario" autocomplete="username" required>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="password">Contraseña</label>
+      <div class="input-wrapper">
+        <input type="password" id="password" placeholder="Mínimo 6 caracteres" autocomplete="current-password" required>
+        <button type="button" class="toggle-password" id="togglePassword">
+          <svg id="eyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <button type="submit" class="btn-primary" id="submitBtn">Iniciar sesión</button>
+  </form>
+
+  <p class="footer">Al continuar aceptas los <a href="#">términos y condiciones</a></p>
+</div>
+
+<script>
+  // ============================================================
+  //  CONFIG
+  // ============================================================
+  const API_URL = window.location.origin + '/api';
+
+  // ============================================================
+  //  ESTADO
+  // ============================================================
+  let currentTab = 'login';
+  let passwordVisible = false;
+
+  // ============================================================
+  //  ELEMENTOS
+  // ============================================================
+  const tabs = document.querySelectorAll('.tab');
+  const nameGroup = document.getElementById('nameGroup');
+  const submitBtn = document.getElementById('submitBtn');
+  const messageEl = document.getElementById('message');
+  const form = document.getElementById('authForm');
+  const nameInput = document.getElementById('name');
+  const usernameInput = document.getElementById('username');
+  const passwordInput = document.getElementById('password');
+  const togglePassword = document.getElementById('togglePassword');
+  const eyeIcon = document.getElementById('eyeIcon');
+
+  // ============================================================
+  //  TABS
+  // ============================================================
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.dataset.tab;
+      if (target === currentTab) return;
+      currentTab = target;
+
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+
+      if (target === 'register') {
+        nameGroup.style.display = 'block';
+        submitBtn.textContent = 'Crear cuenta';
+        passwordInput.setAttribute('autocomplete', 'new-password');
+      } else {
+        nameGroup.style.display = 'none';
+        submitBtn.textContent = 'Iniciar sesión';
+        passwordInput.setAttribute('autocomplete', 'current-password');
+      }
+
+      hideMessage();
+    });
+  });
+
+  // ============================================================
+  //  TOGGLE PASSWORD
+  // ============================================================
+  togglePassword.addEventListener('click', () => {
+    passwordVisible = !passwordVisible;
+
+    if (passwordVisible) {
+      passwordInput.type = 'text';
+      eyeIcon.innerHTML = `
+        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+        <line x1="1" y1="1" x2="23" y2="23"></line>
+      `;
+    } else {
+      passwordInput.type = 'password';
+      eyeIcon.innerHTML = `
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+        <circle cx="12" cy="12" r="3"></circle>
+      `;
+    }
+  });
+
+  // ============================================================
+  //  MENSAJES
+  // ============================================================
+  function showMessage(text, type = 'error') {
+    messageEl.textContent = text;
+    messageEl.className = `message ${type}`;
+  }
+
+  function hideMessage() {
+    messageEl.className = 'message';
+    messageEl.textContent = '';
+  }
+
+  // ============================================================
+  //  VALIDACIÓN
+  // ============================================================
+  function validate() {
+    const name = nameInput.value.trim();
+    const username = usernameInput.value.trim();
+    const password = passwordInput.value;
+
+    if (currentTab === 'register' && name.length < 2) {
+      showMessage('El nombre debe tener al menos 2 caracteres');
+      nameInput.focus();
+      return false;
+    }
+
+    if (username.length < 3) {
+      showMessage('El usuario debe tener al menos 3 caracteres');
+      usernameInput.focus();
+      return false;
+    }
+
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      showMessage('El usuario solo permite letras, números y _');
+      usernameInput.focus();
+      return false;
+    }
+
+    if (password.length < 6) {
+      showMessage('La contraseña debe tener al menos 6 caracteres');
+      passwordInput.focus();
+      return false;
+    }
+
+    return true;
+  }
+
+  // ============================================================
+  //  LOADING
+  // ============================================================
+  function setLoading(loading) {
+    if (loading) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="spinner"></span>Procesando...';
+    } else {
+      submitBtn.disabled = false;
+      submitBtn.textContent = currentTab === 'login' ? 'Iniciar sesión' : 'Crear cuenta';
+    }
+  }
+
+  // ============================================================
+  //  SUBMIT
+  // ============================================================
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideMessage();
+
+    if (!validate()) return;
+
+    setLoading(true);
+
+    const name = nameInput.value.trim();
+    const username = usernameInput.value.trim();
+    const password = passwordInput.value;
+
+    try {
+      const endpoint = currentTab === 'register' ? '/auth/register' : '/auth/login';
+      const body = currentTab === 'register'
+        ? { name, username, password }
+        : { username, password };
+
+      const res = await fetch(API_URL + endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      const json = await res.json();
+
+      if (!res.ok) {
+        throw new Error(json.message || 'Error del servidor');
+      }
+
+      showMessage(currentTab === 'register' ? 'Cuenta creada' : 'Bienvenido', 'success');
+
+      localStorage.setItem('xvnn_token', json.token);
+      localStorage.setItem('xvnn_user', JSON.stringify(json.user));
+
+      setTimeout(() => {
+        window.location.href = 'web.html';
+      }, 500);
+
+    } catch (err) {
+      showMessage(err.message);
+      setLoading(false);
+    }
+  });
+
+  // ============================================================
+  //  AUTO-REDIRECT SI YA HAY SESIÓN
+  // ============================================================
+  (function checkSession() {
+    const token = localStorage.getItem('xvnn_token');
+    if (token) {
+      window.location.href = 'web.html';
+    }
+  })();
+</script>
+
+</body>
+</html>
