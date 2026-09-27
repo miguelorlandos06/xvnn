@@ -3,7 +3,7 @@
 //  TRANSCODIFICACIÓN HLS CON TRANSLOADIT + SUBIDA A TODUS
 // ============================================================
 
-import { Transloadit } from '@transloadit/node';
+import { Transloadit, ApiError } from '@transloadit/node';
 import { CONFIG } from '../config.js';
 import { uploadFile, publicUrl, deletePrefix } from './s3.js';
 
@@ -18,17 +18,10 @@ const client = new Transloadit({
 
 // ============================================================
 //  TRANSCODIFICAR A HLS
-//  - Envía el video a Transloadit
-//  - Espera a que termine
-//  - Descarga los archivos generados
-//  - Los sube a ToDus
 // ============================================================
 export async function transcodeToHLS(videoUrl, videoId, onProgress = () => {}) {
   console.log(`[Transloadit] Enviando: ${videoUrl}`);
 
-  // ============================================================
-  //  1. CREAR ASSEMBLY
-  // ============================================================
   onProgress(5, 'transcoding');
 
   let assembly;
@@ -40,17 +33,33 @@ export async function transcodeToHLS(videoUrl, videoId, onProgress = () => {}) {
             robot: '/http/import',
             url: videoUrl
           },
+          // Paso 1: Codificar la variante HLS (preparar para adaptive)
           encoded: {
             use: 'imported',
             robot: '/video/encode',
             preset: CONFIG.transloadit.preset,
-            ffmpeg_stack: CONFIG.transloadit.ffmpegStack
+            ffmpeg_stack: CONFIG.transloadit.ffmpegStack,
+            result: true
+          },
+          // Paso 2: Generar segmentos y master playlist HLS
+          hls_bundled: {
+            use: 'encoded',
+            robot: '/video/adaptive',
+            technique: 'hls',
+            playlist_name: 'master.m3u8',
+            ffmpeg_stack: CONFIG.transloadit.ffmpegStack,
+            result: true
           }
         }
       },
       waitForCompletion: true
     });
   } catch (err) {
+    if (err instanceof ApiError && err.response?.assembly_id) {
+      console.error(
+        `[Transloadit] Troubleshoot: https://transloadit.com/c/assemblies/${err.response.assembly_id}`
+      );
+    }
     throw new Error(`Transloadit error: ${err.message}`);
   }
 
@@ -61,17 +70,16 @@ export async function transcodeToHLS(videoUrl, videoId, onProgress = () => {}) {
   }
 
   // ============================================================
-  //  2. RECOLECTAR ARCHIVOS GENERADOS
+  //  RECOLECTAR ARCHIVOS GENERADOS
   // ============================================================
-  const encoded = assembly.results?.encoded || [];
-  if (encoded.length === 0) {
-    throw new Error('Transloadit no devolvió archivos');
+  const hlsFiles = assembly.results?.hls_bundled || [];
+  if (hlsFiles.length === 0) {
+    throw new Error('Transloadit no devolvió archivos HLS');
   }
 
-  console.log(`[Transloadit] Archivos recibidos: ${encoded.length}`);
+  console.log(`[Transloadit] Archivos HLS recibidos: ${hlsFiles.length}`);
 
-  // Verificar que existe el master.m3u8
-  const masterFile = encoded.find(f =>
+  const masterFile = hlsFiles.find(f =>
     f.name && f.name.toLowerCase().includes('master.m3u8')
   );
   if (!masterFile) {
@@ -79,7 +87,7 @@ export async function transcodeToHLS(videoUrl, videoId, onProgress = () => {}) {
   }
 
   // ============================================================
-  //  3. SUBIR CADA ARCHIVO A TODUS
+  //  SUBIR CADA ARCHIVO A TODUS
   // ============================================================
   onProgress(55, 'uploading');
 
@@ -88,7 +96,7 @@ export async function transcodeToHLS(videoUrl, videoId, onProgress = () => {}) {
   let uploaded = 0;
   let failed = 0;
 
-  for (const file of encoded) {
+  for (const file of hlsFiles) {
     const fileName = file.name || `file_${uploaded}`;
     const fileUrl = file.ssl_url || file.url;
 
@@ -98,7 +106,6 @@ export async function transcodeToHLS(videoUrl, videoId, onProgress = () => {}) {
     }
 
     try {
-      // Descargar desde Transloadit
       const res = await fetch(fileUrl);
       if (!res.ok) {
         console.warn(`[ToDus] No se pudo descargar ${fileName}: ${res.status}`);
@@ -107,17 +114,14 @@ export async function transcodeToHLS(videoUrl, videoId, onProgress = () => {}) {
       }
 
       const buffer = Buffer.from(await res.arrayBuffer());
-
-      // Determinar Content-Type
       const contentType = getContentType(fileName);
-
-      // Subir a ToDus
       const key = `${baseKey}/${fileName}`;
+
       await uploadFile(key, buffer, contentType);
       uploadedFiles.push(key);
 
       uploaded++;
-      const pct = 55 + Math.round((uploaded / encoded.length) * 40);
+      const pct = 55 + Math.round((uploaded / hlsFiles.length) * 40);
       onProgress(pct, 'uploading');
 
     } catch (err) {
@@ -128,9 +132,6 @@ export async function transcodeToHLS(videoUrl, videoId, onProgress = () => {}) {
 
   console.log(`[ToDus] ${uploadedFiles.length} archivos subidos, ${failed} fallidos`);
 
-  // ============================================================
-  //  4. RESULTADO
-  // ============================================================
   const masterKey = `${baseKey}/master.m3u8`;
 
   onProgress(100, 'done');
@@ -181,14 +182,11 @@ export async function extractThumbnail(videoUrl, videoId) {
       throw new Error('No se generó thumbnail');
     }
 
-    // Descargar el thumbnail
     const thumbUrl = thumbs[0].ssl_url || thumbs[0].url;
     const res = await fetch(thumbUrl);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const buffer = Buffer.from(await res.arrayBuffer());
-
-    // Subir a ToDus
     const thumbKey = `videos/${videoId}/thumb.jpg`;
     await uploadFile(thumbKey, buffer, 'image/jpeg');
 
