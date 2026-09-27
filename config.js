@@ -36,7 +36,7 @@ export const CONFIG = {
     authSecret: 'bIyYPZVpwGCotvACwqzSW0TtAe1Odqe1LSyjJkOn',
     signatureAlgorithm: 'sha256',
     preset: 'hls/720p',
-    ffmpegStack: 'v6.0.0'
+    ffmpegStack: 'v7'
   },
 
   // ============ BOT TELEGRAM ============
