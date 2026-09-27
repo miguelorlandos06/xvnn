@@ -34,7 +34,7 @@ export async function transcodeToHLS(videoUrl, videoId, onProgress = () => {}) {
           encoded_240p: {
             use: 'imported',
             robot: '/video/encode',
-            preset: 'hls-240p',
+            preset: 'hls/240p',
             ffmpeg_stack: CONFIG.transloadit.ffmpegStack,
             result: true
           },
@@ -42,7 +42,7 @@ export async function transcodeToHLS(videoUrl, videoId, onProgress = () => {}) {
           encoded_480p: {
             use: 'imported',
             robot: '/video/encode',
-            preset: 'hls-480p',
+            preset: 'hls/480p',
             ffmpeg_stack: CONFIG.transloadit.ffmpegStack,
             result: true
           },
@@ -50,7 +50,7 @@ export async function transcodeToHLS(videoUrl, videoId, onProgress = () => {}) {
           encoded_720p: {
             use: 'imported',
             robot: '/video/encode',
-            preset: 'hls-720p',
+            preset: 'hls/720p',
             ffmpeg_stack: CONFIG.transloadit.ffmpegStack,
             result: true
           },
@@ -58,7 +58,7 @@ export async function transcodeToHLS(videoUrl, videoId, onProgress = () => {}) {
           encoded_1080p: {
             use: 'imported',
             robot: '/video/encode',
-            preset: 'hls-1080p',
+            preset: 'hls/1080p',
             ffmpeg_stack: CONFIG.transloadit.ffmpegStack,
             result: true
           },
@@ -172,7 +172,7 @@ export async function transcodeToHLS(videoUrl, videoId, onProgress = () => {}) {
 }
 
 // ============================================================
-//  EXTRAER THUMBNAIL
+//  EXTRAER THUMBNAIL (sin cambios)
 // ============================================================
 export async function extractThumbnail(videoUrl, videoId) {
   console.log(`[Transloadit] Generando thumbnail: ${videoUrl}`);
@@ -226,7 +226,7 @@ export async function extractThumbnail(videoUrl, videoId) {
 }
 
 // ============================================================
-//  ELIMINAR TODOS LOS ARCHIVOS DE UN VIDEO
+//  ELIMINAR TODOS LOS ARCHIVOS DE UN VIDEO (sin cambios)
 // ============================================================
 export async function deleteVideoFiles(videoId) {
   console.log(`[ToDus] Eliminando archivos del video ${videoId}`);
@@ -234,7 +234,7 @@ export async function deleteVideoFiles(videoId) {
 }
 
 // ============================================================
-//  UTILS
+//  UTILS (sin cambios)
 // ============================================================
 function getContentType(fileName) {
   const lower = fileName.toLowerCase();

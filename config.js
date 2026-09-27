@@ -35,7 +35,7 @@ export const CONFIG = {
     authKey: 'R7k1Wo4IyeeoqgT0qGvEERKzV1Pqb8bW',
     authSecret: 'bIyYPZVpwGCotvACwqzSW0TtAe1Odqe1LSyjJkOn',
     signatureAlgorithm: 'sha256',
-    preset: 'hls-720p',
+    preset: 'hls/720p',
     ffmpegStack: 'v6.0.0'
   },
 
