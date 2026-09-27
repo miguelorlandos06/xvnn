@@ -1,15 +1,12 @@
 // services/transloadit.js
 // ============================================================
-//  TRANSCODIFICACIÓN HLS CON TRANSLOADIT + SUBIDA A TODUS
+//  TRANSCODIFICACIÓN HLS MULTI-CALIDAD (240p - 1080p)
 // ============================================================
 
 import { Transloadit, ApiError } from '@transloadit/node';
 import { CONFIG } from '../config.js';
 import { uploadFile, publicUrl, deletePrefix } from './s3.js';
 
-// ============================================================
-//  CLIENTE TRANSLOADIT
-// ============================================================
 const client = new Transloadit({
   authKey: CONFIG.transloadit.authKey,
   authSecret: CONFIG.transloadit.authSecret,
@@ -17,7 +14,7 @@ const client = new Transloadit({
 });
 
 // ============================================================
-//  TRANSCODIFICAR A HLS
+//  TRANSCODIFICAR A HLS CON MÚLTIPLES CALIDADES
 // ============================================================
 export async function transcodeToHLS(videoUrl, videoId, onProgress = () => {}) {
   console.log(`[Transloadit] Enviando: ${videoUrl}`);
@@ -33,17 +30,46 @@ export async function transcodeToHLS(videoUrl, videoId, onProgress = () => {}) {
             robot: '/http/import',
             url: videoUrl
           },
-          // Paso 1: Codificar la variante HLS (preparar para adaptive)
-          encoded: {
+          // --- 240p ---
+          encoded_240p: {
             use: 'imported',
             robot: '/video/encode',
-            preset: CONFIG.transloadit.preset,
+            preset: 'hls/240p',
             ffmpeg_stack: CONFIG.transloadit.ffmpegStack,
             result: true
           },
-          // Paso 2: Generar segmentos y master playlist HLS
+          // --- 480p ---
+          encoded_480p: {
+            use: 'imported',
+            robot: '/video/encode',
+            preset: 'hls/480p',
+            ffmpeg_stack: CONFIG.transloadit.ffmpegStack,
+            result: true
+          },
+          // --- 720p ---
+          encoded_720p: {
+            use: 'imported',
+            robot: '/video/encode',
+            preset: 'hls/720p',
+            ffmpeg_stack: CONFIG.transloadit.ffmpegStack,
+            result: true
+          },
+          // --- 1080p ---
+          encoded_1080p: {
+            use: 'imported',
+            robot: '/video/encode',
+            preset: 'hls/1080p',
+            ffmpeg_stack: CONFIG.transloadit.ffmpegStack,
+            result: true
+          },
+          // --- Empaquetar las 4 calidades en HLS ---
           hls_bundled: {
-            use: 'encoded',
+            use: [
+              'encoded_240p',
+              'encoded_480p',
+              'encoded_720p',
+              'encoded_1080p'
+            ],
             robot: '/video/adaptive',
             technique: 'hls',
             playlist_name: 'master.m3u8',
@@ -70,7 +96,7 @@ export async function transcodeToHLS(videoUrl, videoId, onProgress = () => {}) {
   }
 
   // ============================================================
-  //  RECOLECTAR ARCHIVOS GENERADOS
+  //  RECOLECTAR ARCHIVOS HLS
   // ============================================================
   const hlsFiles = assembly.results?.hls_bundled || [];
   if (hlsFiles.length === 0) {
