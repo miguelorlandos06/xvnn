@@ -7,7 +7,7 @@ export const CONFIG = {
   // ============ SERVIDOR ============
   server: {
     port: 10000,
-    baseUrl: 'https://xvnn.onrender.com',
+    baseUrl: 'https://xvnn-6jl5.onrender.com',
     env: 'production',
     brand: 'XVNN'
   },
